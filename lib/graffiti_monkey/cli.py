@@ -33,7 +33,7 @@ def _fail(message="Unknown failure", code=1):
 
 
 def run():
-    parser = argparse.ArgumentParser(description='Goes around tagging EBS volumes and snapshots by propagating the tags the EC2 instance has')
+    parser = argparse.ArgumentParser(description='Propagates tags from AWS EC2 instances to EBS volumes, and then to EBS snapshots. This makes it much easier to find things down the road.')
     parser.add_argument('--region', metavar='REGION', 
                         help='the region to tag things in (default is current region of EC2 instance this is running on). E.g. us-east-1')
     parser.add_argument('--verbose', '-v', action='count', 
@@ -61,9 +61,9 @@ def run():
         log.debug("Running in region: %s", region)
 
     try:
-        monkey = GraffitiMonkey(region, args.max_snapshots_per_volume)
+        monkey = GraffitiMonkey(region)
         
-        monkey.tag()
+        monkey.propagate_tags()
         
     except GraffitiMonkeyException as e:
         _fail(e.message)

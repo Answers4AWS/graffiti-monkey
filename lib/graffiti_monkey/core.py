@@ -31,26 +31,43 @@ class GraffitiMonkey(object):
         self._conn = ec2.connect_to_region(self._region)            
 
     
-    def tag(self):
-        ''' Loops through all EBS volumes and creates snapshots of them '''
+    def propagate_tags(self):
+        ''' Propagates tags by copying them from EC2 instance to EBS volume, and
+        then to snapshot '''
         
-        log.info('Tagging')
-#        volumes = self._conn.get_all_volumes()
-#        log.info('Found %d volumes', len(volumes))
-#        for volume in volumes:            
-#            description_parts = [self._prefix]
-#            description_parts.append(volume.id)
-#            if volume.attach_data.instance_id:
-#                description_parts.append(volume.attach_data.instance_id)
-#            if volume.attach_data.device:
-#                description_parts.append(volume.attach_data.device)
-#            description = ' '.join(description_parts)
-#            log.info('Creating snapshot of %s: %s', volume.id, description)
-#            volume.create_snapshot(description)
-#        return True
+        self.tag_volumes()
+        #TODO self.tag_snapshots()
+            
+
+    def tag_volumes(self):
+        ''' Gets a list of all volumes, and then loops through them tagging
+        them '''
+        
+        log.info('Getting list of all volumes')
+        volumes = self._conn.get_all_volumes()
+        log.info('Found %d volumes', len(volumes))
+        for volume in volumes:
+            if volume.status != 'in-use':
+                log.debug('Skipping %s as it is not attached to an EC2 instance, so there is nothing to propagate', volume.id)
+                continue
+            self.tag_volume(volume)
 
 
-
+    def tag_volume(self, volume):
+        ''' Tags a specific volume '''
+        
+        pp.pprint(vars(volume))
+        pp.pprint(vars(volume.attach_data))
+        
+        instance_id = None
+        device = None
+        
+        if volume.attach_data.instance_id:
+            instance_id = volume.attach_data.instance_id
+        if volume.attach_data.device:
+            device = volume.attach_data.device
+        log.info('%s: %s %s', volume.id, instance_id, device)
+        return True
 
 
 
