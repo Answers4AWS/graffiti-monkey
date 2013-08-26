@@ -10,12 +10,12 @@ dist
 build
 eggs
 parts
-bin
+#bin
 var
 sdist
 develop-eggs
 .installed.cfg
-lib
+#lib
 lib64
 
 # Installer logs

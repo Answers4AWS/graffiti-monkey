@@ -1,0 +1,32 @@
+#!/usr/bin/python 
+# Copyright 2013 Answers for AWS LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Graffiti Monkey
+==============
+This script runs the Graffiti Monkey service.
+
+NOTE: It is here just as an easy way to run ./graffiti-monkey during
+development. This is not the script that is installed then you install graffiti
+monkey using pip.
+"""
+
+import sys, os
+sys.path.insert(0, os.path.abspath('../lib'))
+
+from graffiti_monkey import cli
+
+if __name__ == '__main__':
+    cli.run()
