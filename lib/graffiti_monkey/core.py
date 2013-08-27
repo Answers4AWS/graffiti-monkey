@@ -25,7 +25,15 @@ log = logging.getLogger(__name__)
 
 class GraffitiMonkey(object):
     def __init__(self, region):
+        # This list of tags associated with an EC2 instance to propagate to 
+        # attached EBS volumes
+        self._instance_tags_to_propagate = ['Name']
+        
+        # The region to operate in
         self._region = region
+        
+        # Map from instance ID to list of tags
+        self._instance_cache = {}
         
         log.info("Connecting to region %s", self._region)
         self._conn = ec2.connect_to_region(self._region)            
@@ -55,21 +63,58 @@ class GraffitiMonkey(object):
 
     def tag_volume(self, volume):
         ''' Tags a specific volume '''
-        
-        pp.pprint(vars(volume))
-        pp.pprint(vars(volume.attach_data))
-        
+                
         instance_id = None
-        device = None
-        
         if volume.attach_data.instance_id:
             instance_id = volume.attach_data.instance_id
+        device = None
         if volume.attach_data.device:
             device = volume.attach_data.device
-        log.info('%s: %s %s', volume.id, instance_id, device)
+        
+        instance_tags = self._get_instance_tags(instance_id)
+        
+        tags_to_set = {}
+        for tag_name in self._instance_tags_to_propagate:
+            log.debug('Trying to propagate instance tag: %s', tag_name)
+            if tag_name in instance_tags:
+                value = instance_tags[tag_name]
+                tags_to_set[tag_name] = value
+
+        # Additional tags
+        tags_to_set['instance_id'] = instance_id
+        tags_to_set['device'] = device
+
+        self._set_volume_tags(volume, tags_to_set)        
         return True
 
 
+    def _set_volume_tags(self, volume, tags):
+        ''' Sets the tags on the given volume '''
+        
+        for tag_key, tag_value in tags.iteritems():
+            if not tag_key in volume.tags or volume.tags[tag_key] != tag_value:
+                log.info('Tagging %s with [%s: %s]', volume.id, tag_key, tag_value)
+                volume.add_tag(tag_key, tag_value)
+        
+
+    def _get_instance_tags(self, instance_id):
+        ''' Gets all of the tags associated with an instance as a dict '''
+        
+        instance_tags = {}
+        if instance_id:
+            if not instance_id in self._instance_cache:
+                # Add instance tags to cache
+                log.debug('Fetching tags for %s', instance_id)
+                instance_tags = self._conn.get_all_tags({'resource-id': instance_id})
+                self._instance_cache[instance_id] = {}
+                for tag in instance_tags:
+                    self._instance_cache[instance_id][tag.name] = tag.value
+            
+            # Use value from cache
+            instance_tags = self._instance_cache[instance_id]
+
+        return instance_tags
+    
 
 class Logging(object):
     # Logging formats
