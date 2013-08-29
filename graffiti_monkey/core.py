@@ -29,11 +29,18 @@ class GraffitiMonkey(object):
         # attached EBS volumes
         self._instance_tags_to_propagate = ['Name']
         
+        # This is a list of tags associated with a volume to propagate to
+        # a snapshot created from the volume 
+        self._volume_tags_to_propagate = ['Name', 'instance_id', 'device']
+        
         # The region to operate in
         self._region = region
         
         # Map from instance ID to list of tags
         self._instance_cache = {}
+        
+        # Map from volume ID to list of tags
+        self._volume_cache = {}
         
         log.info("Connecting to region %s", self._region)
         self._conn = ec2.connect_to_region(self._region)            
@@ -43,8 +50,8 @@ class GraffitiMonkey(object):
         ''' Propagates tags by copying them from EC2 instance to EBS volume, and
         then to snapshot '''
         
-        self.tag_volumes()
-        #TODO self.tag_snapshots()
+        #self.tag_volumes()
+        self.tag_snapshots()
             
 
     def tag_volumes(self):
@@ -115,7 +122,40 @@ class GraffitiMonkey(object):
 
         return instance_tags
     
+    
+    def tag_snapshots(self):
+        ''' Gets a list of all snapshots, and then loops through them tagging
+        them '''
+        
+        log.info('Getting list of all snapshots')
+        snapshots = self._conn.get_all_snapshots(owner='self')
+        log.info('Found %d snapshots', len(snapshots))
+        for snapshot in snapshots:
+            self.tag_snapshot(snapshot)    
 
+
+    def tag_snapshot(self, snapshot):
+        ''' Tags a specific snapshot '''
+                
+        volume_id = snapshot.volume_id
+#        if volume_id == '':
+#            log.debug('Skipping %s as it does not have volume information', snapshot.id)
+#            continue
+        
+        volume_tags = self._get_volume_tags(volume_id)
+        
+        tags_to_set = {}
+        for tag_name in self._volume_tags_to_propagate:
+            log.debug('Trying to propagate volume tag: %s', tag_name)
+            if tag_name in volume_tags:
+                value = volume_tags[tag_name]
+                tags_to_set[tag_name] = value
+
+
+        self._set_snapshot_tags(snapshot, tags_to_set)        
+        return True
+    
+    
 class Logging(object):
     # Logging formats
     _log_simple_format = '%(asctime)s [%(levelname)s] %(message)s'

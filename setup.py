@@ -25,14 +25,12 @@ if major != 2 or minor < 7:
 
 from distribute_setup import use_setuptools
 use_setuptools()
-from setuptools import setup
-
-sys.path.insert(0, os.path.abspath('lib'))
+from setuptools import setup, find_packages
+    
 import graffiti_monkey
 
-requires = [
-    'boto>=2.7'
-]
+with open('requirements.txt') as fh:
+    requires = [requirement.strip() for requirement in fh]
 
 entry_points = {
     'console_scripts': [
@@ -44,6 +42,11 @@ packages = [
     'graffiti_monkey'
 ]
 
+exclude_packages = [
+    'tests',
+    'tests.*',
+]
+
 setup(
     name='graffiti_monkey',
     version=graffiti_monkey.__version__,
@@ -52,8 +55,8 @@ setup(
     author=graffiti_monkey.__author__,
     author_email='info@answersforaws.com',
     url='https://github.com/Answers4AWS/graffiti-monkey',
-    packages=packages,
-    package_dir={'graffiti_monkey': 'lib/graffiti_monkey'},
+    packages=find_packages(exclude=exclude_packages),
+    package_dir={'graffiti_monkey': 'graffiti_monkey'},
     include_package_data=True,
     zip_safe=False,
     install_requires=requires,
