@@ -13,10 +13,13 @@
 # limitations under the License.
 
 import logging
+
+from cache import Memorize
+from exceptions import *
+
+from boto import ec2 
+
 import pprint
-
-from boto import ec2
-
 pp = pprint.PrettyPrinter(depth=2)
 
 __all__ = ('GraffitiMonkey', 'Logging')
@@ -36,12 +39,6 @@ class GraffitiMonkey(object):
         # The region to operate in
         self._region = region
         
-        # Map from instance ID to list of tags
-        self._instance_cache = {}
-        
-        # Map from volume ID to list of tags
-        self._volume_cache = {}
-        
         log.info("Connecting to region %s", self._region)
         self._conn = ec2.connect_to_region(self._region)            
 
@@ -50,7 +47,7 @@ class GraffitiMonkey(object):
         ''' Propagates tags by copying them from EC2 instance to EBS volume, and
         then to snapshot '''
         
-        #self.tag_volumes()
+        self.tag_volumes()
         self.tag_snapshots()
             
 
@@ -78,7 +75,7 @@ class GraffitiMonkey(object):
         if volume.attach_data.device:
             device = volume.attach_data.device
         
-        instance_tags = self._get_instance_tags(instance_id)
+        instance_tags = self._get_resource_tags(instance_id)
         
         tags_to_set = {}
         for tag_name in self._instance_tags_to_propagate:
@@ -91,36 +88,8 @@ class GraffitiMonkey(object):
         tags_to_set['instance_id'] = instance_id
         tags_to_set['device'] = device
 
-        self._set_volume_tags(volume, tags_to_set)        
+        self._set_resource_tags(volume, tags_to_set)        
         return True
-
-
-    def _set_volume_tags(self, volume, tags):
-        ''' Sets the tags on the given volume '''
-        
-        for tag_key, tag_value in tags.iteritems():
-            if not tag_key in volume.tags or volume.tags[tag_key] != tag_value:
-                log.info('Tagging %s with [%s: %s]', volume.id, tag_key, tag_value)
-                volume.add_tag(tag_key, tag_value)
-        
-
-    def _get_instance_tags(self, instance_id):
-        ''' Gets all of the tags associated with an instance as a dict '''
-        
-        instance_tags = {}
-        if instance_id:
-            if not instance_id in self._instance_cache:
-                # Add instance tags to cache
-                log.debug('Fetching tags for %s', instance_id)
-                instance_tags = self._conn.get_all_tags({'resource-id': instance_id})
-                self._instance_cache[instance_id] = {}
-                for tag in instance_tags:
-                    self._instance_cache[instance_id][tag.name] = tag.value
-            
-            # Use value from cache
-            instance_tags = self._instance_cache[instance_id]
-
-        return instance_tags
     
     
     def tag_snapshots(self):
@@ -142,7 +111,7 @@ class GraffitiMonkey(object):
 #            log.debug('Skipping %s as it does not have volume information', snapshot.id)
 #            continue
         
-        volume_tags = self._get_volume_tags(volume_id)
+        volume_tags = self._get_resource_tags(volume_id)
         
         tags_to_set = {}
         for tag_name in self._volume_tags_to_propagate:
@@ -152,10 +121,40 @@ class GraffitiMonkey(object):
                 tags_to_set[tag_name] = value
 
 
-        self._set_snapshot_tags(snapshot, tags_to_set)        
+        self._set_resource_tags(snapshot, tags_to_set)        
         return True
-    
-    
+        
+
+    @Memorize
+    def _get_resource_tags(self, resource_id):
+        ''' Gets all of the tags associated with an AWS resource (such as an
+        instance-id, volume-id, etc) as a dictionary '''
+        
+        resource_tags = {}
+        if resource_id:
+            # Get the set of tags for a volume
+            log.debug('Fetching tags for %s', resource_id)
+            tags = self._conn.get_all_tags({'resource-id': resource_id})
+            for tag in tags:
+                resource_tags[tag.name] = tag.value
+
+        return resource_tags    
+
+
+    def _set_resource_tags(self, resource, tags):
+        ''' Sets the tags on the given AWS resource '''
+        
+        if not isinstance(resource, ec2.ec2object.TaggedEC2Object):
+            msg = 'Resource %s is not an instance of TaggedEC2Object' % resource
+            raise GraffitiMonkeyException(msg)
+        
+        for tag_key, tag_value in tags.iteritems():
+            if not tag_key in resource.tags or resource.tags[tag_key] != tag_value:
+                log.info('Tagging %s with [%s: %s]', resource.id, tag_key, tag_value)
+                resource.add_tag(tag_key, tag_value)
+
+
+
 class Logging(object):
     # Logging formats
     _log_simple_format = '%(asctime)s [%(levelname)s] %(message)s'
