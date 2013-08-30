@@ -32,6 +32,7 @@ Examples
 Suppose you have the following in `us-east-1`:
 
 ::
+
 	i-abcd1234
 	  - Tags:
 	    - Name: "Instance 1"
@@ -53,6 +54,7 @@ When you run:
 First, Graffiti Monkey will set the EBS volume tags
 
 ::
+
 	vol-bcde3456
 	  - Tags:
 	    - Name: "Instance 1"
@@ -62,6 +64,7 @@ First, Graffiti Monkey will set the EBS volume tags
 and then it will set the tags on the EBS Snapshot
 
 ::
+
 	snap-cdef4567
 	  - Tags:
 	    - Name: "Instance 1"
