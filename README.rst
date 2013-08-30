@@ -14,16 +14,59 @@ Usage
 
 ::
 
-    usage: graffiti-monkey [-h] [--region REGION]
+	usage: graffiti-monkey [-h] [--region REGION] [--verbose] [--version]
+	
+	Propagates tags from AWS EC2 instances to EBS volumes, and then to EBS
+	snapshots. This makes it much easier to find things down the road.
+	
+	optional arguments:
+	  -h, --help       show this help message and exit
+	  --region REGION  the region to tag things in (default is current region of
+	                   EC2 instance this is running on). E.g. us-east-1
+	  --verbose, -v    enable verbose output (-vvv for more)
+	  --version        display version number and exit
 
 Examples
 --------
 
-Propagate tags from EC2 instances to EBS volumes and snapshots in us-east-1:
+Suppose you have the following in `us-east-1`:
+
+::
+	i-abcd1234
+	  - Tags:
+	    - Name: "Instance 1"
+	 
+	vol-bcde3456
+	  - Attached to i-abcd1234 on /dev/sda1
+	 
+	snap-cdef4567
+	  - Snapshot of vol-bcde3456
+
+
+When you run:
 
 ::
 
     graffiti-monkey --region us-east-1
+
+
+First, Graffiti Monkey will set the EBS volume tags
+
+::
+	vol-bcde3456
+	  - Tags:
+	    - Name: "Instance 1"
+	    - instance_id: i-abcd1234
+	    - device: /dev/sda1
+	    
+and then it will set the tags on the EBS Snapshot
+
+::
+	snap-cdef4567
+	  - Tags:
+	    - Name: "Instance 1"
+	    - instance_id: i-abcd1234
+	    - device: /dev/sda1
 
 
 
