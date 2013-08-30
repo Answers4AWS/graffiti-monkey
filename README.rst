@@ -85,6 +85,12 @@ You can install Graffiti Monkey using the usual PyPI channels. Example:
 You can find the package details here: https://pypi.python.org/pypi/graffiti_monkey
 
 
+Wiki
+----
+
+Can be found here: https://github.com/Answers4AWS/graffiti-monkey/wiki
+
+
 About Answers for AWS
 ---------------------
 
