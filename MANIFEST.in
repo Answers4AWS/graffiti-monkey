@@ -1,1 +1,1 @@
-include LICENSE.txt README.rst distribute_setup.py
+include LICENSE.txt README.rst distribute_setup.py requirements.txt
