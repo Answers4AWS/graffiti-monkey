@@ -17,7 +17,7 @@
 distutils/setuptools install script for Graffiti Monkey
 """
 
-import sys, os
+import sys
 major, minor = sys.version_info[0:2]
 if major != 2 or minor < 7:
     print 'Graffiti Monkey requires Python 2.7.x'
@@ -37,10 +37,6 @@ entry_points = {
         'graffiti-monkey = graffiti_monkey.cli:run',
     ]
 }
-
-packages = [
-    'graffiti_monkey'
-]
 
 exclude_packages = [
     'tests',

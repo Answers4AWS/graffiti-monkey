@@ -84,11 +84,28 @@ You can install Graffiti Monkey using the usual PyPI channels. Example:
     
 You can find the package details here: https://pypi.python.org/pypi/graffiti_monkey
 
+Alternatively, if you prefer to install from source:
+
+::
+
+    git clone git@github.com:Answers4AWS/graffiti-monkey.git
+    cd graffiti-monkey
+    python setup.py install
+
+
 
 Wiki
 ----
 
 Can be found here: https://github.com/Answers4AWS/graffiti-monkey/wiki
+
+
+Source Code
+-----------
+
+The Python source code for Backup Monkey is available on GitHub:
+
+https://github.com/Answers4AWS/graffiti-monkey
 
 
 About Answers for AWS
