@@ -17,10 +17,8 @@ import logging
 from cache import Memorize
 from exceptions import *
 
+import boto
 from boto import ec2 
-
-import pprint
-pp = pprint.PrettyPrinter(depth=2)
 
 __all__ = ('GraffitiMonkey', 'Logging')
 log = logging.getLogger(__name__)
@@ -40,7 +38,10 @@ class GraffitiMonkey(object):
         self._region = region
         
         log.info("Connecting to region %s", self._region)
-        self._conn = ec2.connect_to_region(self._region)            
+        try:
+            self._conn = ec2.connect_to_region(self._region)
+        except boto.exception.NoAuthHandlerFound:
+            raise GraffitiMonkeyException('No AWS credentials found - check your credentials')
 
     
     def propagate_tags(self):
