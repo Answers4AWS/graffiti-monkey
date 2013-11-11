@@ -1,0 +1,20 @@
+---
+volume:
+  collect:
+    instance_id: attach_data.instance_id
+    device: attach_data.device
+  inspect:
+    instance: 
+      type: instance
+      id: instance_id
+      collect: 
+        name: tags.Name
+  tag:
+    Name: name
+    instance_id: instance_id
+    device: device
+
+snapshot:
+  collect:
+  tag:
+
