@@ -63,7 +63,11 @@ class GraffitiMonkey(object):
             if volume.status != 'in-use':
                 log.debug('Skipping %s as it is not attached to an EC2 instance, so there is nothing to propagate', volume.id)
                 continue
-            self.tag_volume(volume)
+            try:
+                self.tag_volume(volume)
+            except boto.exception.EC2ResponseError, e:
+                print "Encountered Error %s on volume %s" % (e.error_code, volume.id)
+                continue
 
 
     def tag_volume(self, volume):
