@@ -66,7 +66,7 @@ class GraffitiMonkey(object):
             try:
                 self.tag_volume(volume)
             except boto.exception.EC2ResponseError, e:
-                print "Encountered Error %s on volume %s" % (e.error_code, volume.id)
+                log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
                 continue
 
 
