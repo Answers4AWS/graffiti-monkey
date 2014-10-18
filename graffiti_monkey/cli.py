@@ -27,47 +27,77 @@ __all__ = ('run', )
 log = logging.getLogger(__name__)
 
 
-def _fail(message="Unknown failure", code=1):
-    log.error(message)
-    sys.exit(code)
+class GraffitiMonkeyCli(object):
+    def __init__(self):
+        self.region = None
+        self.monkey = None
+        self.args = None
+
+    @staticmethod
+    def _fail(message="Unknown failure", code=1):
+        log.error(message)
+        sys.exit(code)
+
+    def get_argv(self):
+        """
+        The parse_args method from ArgumentParser expects to not get the script title when arguments are passed to the
+        method. So the first element is omitted.
+        """
+        return sys.argv[1:]
+
+    def set_cli_args(self):
+        parser = argparse.ArgumentParser(description='Propagates tags from AWS EC2 instances to EBS volumes, and then to EBS snapshots. This makes it much easier to find things down the road.')
+        parser.add_argument('--region', metavar='REGION',
+                            help='the region to tag things in (default is current region of EC2 instance this is running on). E.g. us-east-1')
+        parser.add_argument('--verbose', '-v', action='count',
+                            help='enable verbose output (-vvv for more)')
+        parser.add_argument('--version', action='version', version='%(prog)s ' + __version__,
+                            help='display version number and exit')
+        self.args = parser.parse_args(self.get_argv())
+
+    def set_region(self):
+        if self.args.region:
+            self.region = self.args.region
+        else:
+            # If no region was specified, assume this is running on an EC2 instance
+            # and work out what region it is in
+            log.debug("Figure out which region I am running in...")
+            instance_metadata = get_instance_metadata(timeout=5)
+            log.debug('Instance meta-data: %s', instance_metadata)
+            if not instance_metadata:
+                GraffitiMonkeyCli._fail('Could not determine region. This script is either not running on an EC2 instance (in which case you should use the --region option), or the meta-data service is down')
+
+            self.region = instance_metadata['placement']['availability-zone'][:-1]
+            log.debug("Running in region: %s", self.region)
+
+    def initialize_monkey(self):
+        self.monkey = GraffitiMonkey(self.region)
+
+    def start_tags_propagation(self):
+        self.monkey.propagate_tags()
+
+    def exit_succesfully(self):
+        log.info('Graffiti Monkey completed successfully!')
+        sys.exit(0)
+
+    def run(self):
+        self.set_cli_args()
+
+        Logging().configure(self.args.verbose)
+        log.debug("CLI parse args: %s", self.args)
+
+        self.set_region()
+
+        try:
+            self.initialize_monkey()
+            self.start_tags_propagation()
+
+        except GraffitiMonkeyException as e:
+            GraffitiMonkeyCli._fail(e.message)
+
+        self.exit_succesfully()
 
 
 def run():
-    parser = argparse.ArgumentParser(description='Propagates tags from AWS EC2 instances to EBS volumes, and then to EBS snapshots. This makes it much easier to find things down the road.')
-    parser.add_argument('--region', metavar='REGION', 
-                        help='the region to tag things in (default is current region of EC2 instance this is running on). E.g. us-east-1')
-    parser.add_argument('--verbose', '-v', action='count', 
-                        help='enable verbose output (-vvv for more)')
-    parser.add_argument('--version', action='version', version='%(prog)s ' + __version__,
-                        help='display version number and exit')
-    args = parser.parse_args()
-    
-    Logging().configure(args.verbose)
-
-    log.debug("CLI parse args: %s", args)
-
-    if args.region:
-        region = args.region
-    else:
-        # If no region was specified, assume this is running on an EC2 instance
-        # and work out what region it is in
-        log.debug("Figure out which region I am running in...")
-        instance_metadata = get_instance_metadata(timeout=5)
-        log.debug('Instance meta-data: %s', instance_metadata)
-        if not instance_metadata:
-            _fail('Could not determine region. This script is either not running on an EC2 instance (in which case you should use the --region option), or the meta-data service is down')
-        
-        region = instance_metadata['placement']['availability-zone'][:-1]
-        log.debug("Running in region: %s", region)
-
-    try:
-        monkey = GraffitiMonkey(region)
-        
-        monkey.propagate_tags()
-        
-    except GraffitiMonkeyException as e:
-        _fail(e.message)
-    
-    log.info('Graffiti Monkey completed successfully!')
-    sys.exit(0)
-    
+    cli = GraffitiMonkeyCli()
+    cli.run()
