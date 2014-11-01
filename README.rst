@@ -124,6 +124,10 @@ Graffiti-monkey itself can be configured using a yaml file
 from an instance to its volumes. :code:`_volume_tags_to_propagate` defines the tags
 that are propagated from a volume to its snapshots.
 
+When using yaml configuration files you need to have pyYAML. This can be easily setup
+ using pip :code:`pip install PyYAML`.  If you don't use config files you don't have
+ this limitation.
+
 
 Wiki
 ----
