@@ -14,17 +14,18 @@ Usage
 
 ::
 
-	usage: graffiti-monkey [-h] [--region REGION] [--verbose] [--version]
+	usage: graffiti-monkey [-h] [--region REGION] [--verbose] [--version] [--config CONFIG.YML]
 	
 	Propagates tags from AWS EC2 instances to EBS volumes, and then to EBS
 	snapshots. This makes it much easier to find things down the road.
 	
 	optional arguments:
-	  -h, --help       show this help message and exit
-	  --region REGION  the region to tag things in (default is current region of
-	                   EC2 instance this is running on). E.g. us-east-1
-	  --verbose, -v    enable verbose output (-vvv for more)
-	  --version        display version number and exit
+	  -h, --help           show this help message and exit
+	  --region REGION      the region to tag things in (default is current region of
+	                       EC2 instance this is running on). E.g. us-east-1
+	  --verbose, -v        enable verbose output (-vvv for more)
+	  --version            display version number and exit
+	  --config CONFIG.YML  read a yaml configuration file.  specify tags to propagate without changing code.
 
 Examples
 --------
@@ -102,6 +103,26 @@ call the AWS APIs. You can pass your AWS credentials to Boto can by using a
 found here:
 
 http://boto.readthedocs.org/en/latest/boto_config_tut.html
+
+Graffiti-monkey itself can be configured using a yaml file
+
+::
+
+  ---
+  #region: us-west-1
+  _instance_tags_to_propagate:
+    - 'Name'
+    - 'Owner'
+
+  _volume_tags_to_propagate:
+    - 'Name'
+    - 'instance_id'
+    - 'device'
+    - 'Owner'
+
+:code:`_instance_tags_to_propagate` is used to define the tags that are propagated
+from an instance to its volumes. :code:`_volume_tags_to_propagate` defines the tags
+that are propagated from a volume to its snapshots.
 
 
 Wiki
