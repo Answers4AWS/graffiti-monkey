@@ -34,6 +34,12 @@ class InitUnchangedTests(unittest.TestCase):
         mock_get_cli_arguments.return_value = ['-v', '--region', 'us-west-1']
         graffiti_monkey_cli.get_argv = mock_get_cli_arguments
 
+    @staticmethod
+    def set_cli_arguments_with_default_config_file(graffiti_monkey_cli):
+        mock_get_cli_arguments = mock.Mock()
+        mock_get_cli_arguments.return_value = ['-v', '--region', 'us-west-1', '--config', 'conf/example_config.yml']
+        graffiti_monkey_cli.get_argv = mock_get_cli_arguments
+
     def test_graffiti_monkey_instance_tags_to_propagate_should_be_the_same(self):
         cli = GraffitiMonkeyCli()
         self.set_cli_arguments(cli)
@@ -51,6 +57,27 @@ class InitUnchangedTests(unittest.TestCase):
     def test_region_unchanged(self):
         cli = GraffitiMonkeyCli()
         self.set_cli_arguments(cli)
+        self.do_not_propagate_tags_nor_exit(cli)
+        cli.run()
+        self.assertEquals(cli.monkey._region, "us-west-1")
+
+    def test_graffiti_monkey_instance_tags_to_propagate_should_be_the_same_with_default_config(self):
+        cli = GraffitiMonkeyCli()
+        self.set_cli_arguments_with_default_config_file(cli)
+        self.do_not_propagate_tags_nor_exit(cli)
+        cli.run()
+        self.assertEquals(cli.monkey._instance_tags_to_propagate, ['Name'])
+
+    def test_graffiti_monkey_volume_tags_to_propagate_should_be_the_same_with_default_config(self):
+        cli = GraffitiMonkeyCli()
+        self.set_cli_arguments_with_default_config_file(cli)
+        self.do_not_propagate_tags_nor_exit(cli)
+        cli.run()
+        self.assertEquals(cli.monkey._volume_tags_to_propagate, ['Name', 'instance_id', 'device'])
+
+    def test_region_unchanged_with_default_config(self):
+        cli = GraffitiMonkeyCli()
+        self.set_cli_arguments_with_default_config_file(cli)
         self.do_not_propagate_tags_nor_exit(cli)
         cli.run()
         self.assertEquals(cli.monkey._region, "us-west-1")

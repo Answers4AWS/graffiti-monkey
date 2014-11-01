@@ -32,6 +32,8 @@ class GraffitiMonkeyCli(object):
         self.region = None
         self.monkey = None
         self.args = None
+        self.config = {"_instance_tags_to_propagate": ['Name'],
+                       "_volume_tags_to_propagate": ['Name', 'instance_id', 'device']}
 
     @staticmethod
     def _fail(message="Unknown failure", code=1):
@@ -53,10 +55,39 @@ class GraffitiMonkeyCli(object):
                             help='enable verbose output (-vvv for more)')
         parser.add_argument('--version', action='version', version='%(prog)s ' + __version__,
                             help='display version number and exit')
+        parser.add_argument('--config', '-c', nargs="?", type=argparse.FileType('r'),
+                        default=None, help="Give a yaml configuration file")
         self.args = parser.parse_args(self.get_argv())
 
+    @staticmethod
+    def fail_due_to_bad_config_file(self):
+        self._fail("Something went wrong reading the passed yaml config file. "
+                          "Make sure to use valid yaml syntax. "
+                          "Also the start of the file should not be marked with '---'.", 6)
+
+    def set_config(self):
+        if self.args.config:
+            try:
+                import yaml
+            except:
+                log.error("When the config parameter is used, you need to have the python PyYAML library.")
+                log.error("It can be installed with pip `pip install PyYAML`.")
+                sys.exit(5)
+
+            try:
+                #TODO: take default values and these can be overwritten by config
+                self.config = yaml.load(self.args.config)
+                if self.config is None:
+                    self.fail_due_to_bad_config_file()
+            except:
+                self.fail_due_to_bad_config_file()
+
+
+
     def set_region(self):
-        if self.args.region:
+        if "region" in self.config.keys():
+            self.region = self.config["region"]
+        elif self.args.region:
             self.region = self.args.region
         else:
             # If no region was specified, assume this is running on an EC2 instance
@@ -71,7 +102,10 @@ class GraffitiMonkeyCli(object):
             log.debug("Running in region: %s", self.region)
 
     def initialize_monkey(self):
-        self.monkey = GraffitiMonkey(self.region)
+        self.monkey = GraffitiMonkey(self.region,
+                                     self.config["_instance_tags_to_propagate"],
+                                     self.config["_volume_tags_to_propagate"])
+
 
     def start_tags_propagation(self):
         self.monkey.propagate_tags()
@@ -86,6 +120,7 @@ class GraffitiMonkeyCli(object):
         Logging().configure(self.args.verbose)
         log.debug("CLI parse args: %s", self.args)
 
+        self.set_config()
         self.set_region()
 
         try:
