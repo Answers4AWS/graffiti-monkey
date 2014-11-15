@@ -113,7 +113,7 @@ Can be found here: https://github.com/Answers4AWS/graffiti-monkey/wiki
 Source Code
 -----------
 
-The Python source code for Backup Monkey is available on GitHub:
+The Python source code for Graffiti Monkey is available on GitHub:
 
 https://github.com/Answers4AWS/graffiti-monkey
 
