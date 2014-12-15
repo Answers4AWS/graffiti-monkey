@@ -1,2 +1,3 @@
 boto>=2.7
-PyYAML>=3.11 (only when using a yaml config file)
+# Following is only needed when using a yaml config file
+PyYAML>=3.11
