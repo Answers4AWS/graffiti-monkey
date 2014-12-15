@@ -13,6 +13,8 @@
 
 import unittest
 import mock
+from moto import mock_ec2
+
 """
 These tests are put in place as to assure that behavior is not changed due to changes in the constructor of
 GraffitiMonkey and .
@@ -40,6 +42,7 @@ class InitUnchangedTests(unittest.TestCase):
         mock_get_cli_arguments.return_value = ['-v', '--region', 'us-west-1', '--config', 'conf/example_config.yml']
         graffiti_monkey_cli.get_argv = mock_get_cli_arguments
 
+    @mock_ec2
     def test_graffiti_monkey_instance_tags_to_propagate_should_be_the_same(self):
         cli = GraffitiMonkeyCli()
         self.set_cli_arguments(cli)
@@ -47,6 +50,7 @@ class InitUnchangedTests(unittest.TestCase):
         cli.run()
         self.assertEquals(cli.monkey._instance_tags_to_propagate, ['Name'])
 
+    @mock_ec2
     def test_graffiti_monkey_volume_tags_to_propagate_should_be_the_same(self):
         cli = GraffitiMonkeyCli()
         self.set_cli_arguments(cli)
@@ -54,6 +58,7 @@ class InitUnchangedTests(unittest.TestCase):
         cli.run()
         self.assertEquals(cli.monkey._volume_tags_to_propagate, ['Name', 'instance_id', 'device'])
 
+    @mock_ec2
     def test_region_unchanged(self):
         cli = GraffitiMonkeyCli()
         self.set_cli_arguments(cli)
@@ -61,6 +66,7 @@ class InitUnchangedTests(unittest.TestCase):
         cli.run()
         self.assertEquals(cli.monkey._region, "us-west-1")
 
+    @mock_ec2
     def test_graffiti_monkey_instance_tags_to_propagate_should_be_the_same_with_default_config(self):
         cli = GraffitiMonkeyCli()
         self.set_cli_arguments_with_default_config_file(cli)
@@ -68,6 +74,7 @@ class InitUnchangedTests(unittest.TestCase):
         cli.run()
         self.assertEquals(cli.monkey._instance_tags_to_propagate, ['Name'])
 
+    @mock_ec2
     def test_graffiti_monkey_volume_tags_to_propagate_should_be_the_same_with_default_config(self):
         cli = GraffitiMonkeyCli()
         self.set_cli_arguments_with_default_config_file(cli)
@@ -75,6 +82,7 @@ class InitUnchangedTests(unittest.TestCase):
         cli.run()
         self.assertEquals(cli.monkey._volume_tags_to_propagate, ['Name', 'instance_id', 'device'])
 
+    @mock_ec2
     def test_region_unchanged_with_default_config(self):
         cli = GraffitiMonkeyCli()
         self.set_cli_arguments_with_default_config_file(cli)
