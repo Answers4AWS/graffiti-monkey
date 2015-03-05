@@ -18,11 +18,11 @@ Usage
 
 ::
 
-	usage: graffiti-monkey [-h] [--region REGION] [--verbose] [--version] [--config CONFIG.YML]
-	
+	usage: graffiti-monkey [-h] [--region REGION] [--verbose] [--version] [--config CONFIG.YML] [--dryrun]
+
 	Propagates tags from AWS EC2 instances to EBS volumes, and then to EBS
 	snapshots. This makes it much easier to find things down the road.
-	
+
 	optional arguments:
 	  -h, --help           show this help message and exit
 	  --region REGION      the region to tag things in (default is current region of
@@ -30,6 +30,7 @@ Usage
 	  --verbose, -v        enable verbose output (-vvv for more)
 	  --version            display version number and exit
 	  --config CONFIG.YML  read a yaml configuration file.  specify tags to propagate without changing code.
+    --dryrun             dryrun only, display tagging actions but do not perform them
 
 Examples
 --------
@@ -41,10 +42,10 @@ Suppose you have the following in `us-east-1`:
 	i-abcd1234
 	  - Tags:
 	    - Name: "Instance 1"
-	 
+
 	vol-bcde3456
 	  - Attached to i-abcd1234 on /dev/sda1
-	 
+
 	snap-cdef4567
 	  - Snapshot of vol-bcde3456
 
@@ -65,7 +66,7 @@ First, Graffiti Monkey will set the EBS volume tags
 	    - Name: "Instance 1"
 	    - instance_id: i-abcd1234
 	    - device: /dev/sda1
-	    
+
 and then it will set the tags on the EBS Snapshot
 
 ::
@@ -86,7 +87,7 @@ You can install Graffiti Monkey using the usual PyPI channels. Example:
 ::
 
     sudo pip install graffiti_monkey
-    
+
 You can find the package details here: https://pypi.python.org/pypi/graffiti_monkey
 
 Alternatively, if you prefer to install from source:

@@ -34,6 +34,7 @@ class GraffitiMonkeyCli(object):
         self.args = None
         self.config = {"_instance_tags_to_propagate": ['Name'],
                        "_volume_tags_to_propagate": ['Name', 'instance_id', 'device']}
+        self.dryrun = False
 
     @staticmethod
     def _fail(message="Unknown failure", code=1):
@@ -57,6 +58,8 @@ class GraffitiMonkeyCli(object):
                             help='display version number and exit')
         parser.add_argument('--config', '-c', nargs="?", type=argparse.FileType('r'),
                         default=None, help="Give a yaml configuration file")
+        parser.add_argument('--dryrun', action='store_true',
+                            help='dryrun only, display tagging actions but do not perform them')
         self.args = parser.parse_args(self.get_argv())
 
     @staticmethod
@@ -101,10 +104,14 @@ class GraffitiMonkeyCli(object):
             self.region = instance_metadata['placement']['availability-zone'][:-1]
             log.debug("Running in region: %s", self.region)
 
+    def set_dryrun(self):
+        self.dryrun = self.args.dryrun
+
     def initialize_monkey(self):
         self.monkey = GraffitiMonkey(self.region,
                                      self.config["_instance_tags_to_propagate"],
-                                     self.config["_volume_tags_to_propagate"])
+                                     self.config["_volume_tags_to_propagate"],
+                                     self.dryrun)
 
 
     def start_tags_propagation(self):
@@ -122,6 +129,7 @@ class GraffitiMonkeyCli(object):
 
         self.set_config()
         self.set_region()
+        self.set_dryrun()
 
         try:
             self.initialize_monkey()
