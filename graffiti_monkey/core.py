@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 
 class GraffitiMonkey(object):
-    def __init__(self, region, instance_tags_to_propagate, volume_tags_to_propagate, dryrun):
+    def __init__(self, region, instance_tags_to_propagate, volume_tags_to_propagate, dryrun, append):
         # This list of tags associated with an EC2 instance to propagate to
         # attached EBS volumes
         self._instance_tags_to_propagate = instance_tags_to_propagate
@@ -37,8 +37,11 @@ class GraffitiMonkey(object):
         # The region to operate in
         self._region = region
 
-        # dryrun
+        # Whether this is a dryrun
         self._dryrun = dryrun
+
+        # If we are appending tags
+        self._append = append
 
         log.info("Connecting to region %s", self._region)
         try:
@@ -86,6 +89,8 @@ class GraffitiMonkey(object):
         instance_tags = self._get_resource_tags(instance_id)
 
         tags_to_set = {}
+        if self._append:
+            tags_to_set = self._get_resource_tags(volume.id)
         for tag_name in self._instance_tags_to_propagate:
             log.debug('Trying to propagate instance tag: %s', tag_name)
             if tag_name in instance_tags:
@@ -111,7 +116,11 @@ class GraffitiMonkey(object):
         snapshots = self._conn.get_all_snapshots(owner='self')
         log.info('Found %d snapshots', len(snapshots))
         for snapshot in snapshots:
-            self.tag_snapshot(snapshot)
+            try:
+                self.tag_snapshot(snapshot)
+            except boto.exception.EC2ResponseError, e:
+                log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
+                continue
 
 
     def tag_snapshot(self, snapshot):
@@ -125,6 +134,8 @@ class GraffitiMonkey(object):
         volume_tags = self._get_resource_tags(volume_id)
 
         tags_to_set = {}
+        if self._append:
+            tags_to_set = self._get_resource_tags(snapshot.id)
         for tag_name in self._volume_tags_to_propagate:
             log.debug('Trying to propagate volume tag: %s', tag_name)
             if tag_name in volume_tags:
@@ -133,7 +144,7 @@ class GraffitiMonkey(object):
 
 
         if self._dryrun:
-            log.info('DRYRUN: Snapshot %s would have been tagged %s', snapshot, tags_to_set)
+            log.info('DRYRUN: Snapshot %s would have been tagged %s', snapshot.id, tags_to_set)
         else:
             self._set_resource_tags(snapshot, tags_to_set)
         return True
