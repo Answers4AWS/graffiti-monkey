@@ -61,7 +61,7 @@ class GraffitiMonkeyCli(object):
                         default=None, help="Give a yaml configuration file")
         parser.add_argument('--dryrun', action='store_true',
                             help='dryrun only, display tagging actions but do not perform them')
-        parser.add_argument('--append', action='store_true',
+        parser.add_argument('--append', action='store_false',
                             help='append propagated tags to existing tags (up to a total of ten tags)')
         self.args = parser.parse_args(self.get_argv())
 
