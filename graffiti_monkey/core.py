@@ -64,8 +64,12 @@ class GraffitiMonkey(object):
 
         log.info('Getting list of all volumes')
         volumes = self._conn.get_all_volumes()
-        log.info('Found %d volumes', len(volumes))
+        total_vols = len(volumes)
+        log.info('Found %d volumes', total_vols)
+        this_vol = 0
         for volume in volumes:
+            this_vol +=1
+            log.info ('Processing volume %d of %d total volumes', this_vol, total_vols)
             if volume.status != 'in-use':
                 log.debug('Skipping %s as it is not attached to an EC2 instance, so there is nothing to propagate', volume.id)
                 continue
@@ -74,6 +78,7 @@ class GraffitiMonkey(object):
             except boto.exception.EC2ResponseError, e:
                 log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
                 continue
+        log.info('Completed processing all volumes')
 
 
     def tag_volume(self, volume):
@@ -114,14 +119,18 @@ class GraffitiMonkey(object):
 
         log.info('Getting list of all snapshots')
         snapshots = self._conn.get_all_snapshots(owner='self')
-        log.info('Found %d snapshots', len(snapshots))
+        total_snaps = len(snapshots)
+        log.info('Found %d snapshots', total_snaps)
+        this_snap = 0
         for snapshot in snapshots:
+            this_snap +=1
+            log.info ('Processing snapshot %d of %d total snapshots', this_snap, total_snaps)
             try:
                 self.tag_snapshot(snapshot)
             except boto.exception.EC2ResponseError, e:
                 log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
                 continue
-
+        log.info('Completed processing all snapshots')
 
     def tag_snapshot(self, snapshot):
         ''' Tags a specific snapshot '''
