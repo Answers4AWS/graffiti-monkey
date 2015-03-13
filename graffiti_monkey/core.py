@@ -78,6 +78,9 @@ class GraffitiMonkey(object):
             except boto.exception.EC2ResponseError, e:
                 log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
                 continue
+            except boto.exception.BotoServerError, e:
+                log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
+                continue
         log.info('Completed processing all volumes')
 
 
@@ -128,6 +131,9 @@ class GraffitiMonkey(object):
             try:
                 self.tag_snapshot(snapshot)
             except boto.exception.EC2ResponseError, e:
+                log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
+                continue
+            except boto.exception.BotoServerError, e:
                 log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
                 continue
         log.info('Completed processing all snapshots')
