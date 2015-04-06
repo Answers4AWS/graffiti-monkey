@@ -18,7 +18,7 @@ Usage
 
 ::
 
-	usage: graffiti-monkey [-h] [--region REGION] [--verbose] [--version] [--config CONFIG.YML] [--dryrun]
+	usage: graffiti-monkey [-h] [--region REGION] [--profile PROFILE] [--verbose] [--version] [--config CONFIG.YML] [--dryrun]
 
 	Propagates tags from AWS EC2 instances to EBS volumes, and then to EBS
 	snapshots. This makes it much easier to find things down the road.
@@ -27,6 +27,8 @@ Usage
 	  -h, --help           show this help message and exit
 	  --region REGION      the region to tag things in (default is current region of
 	                       EC2 instance this is running on). E.g. us-east-1
+	  --profile PROFILE    the profile to use to connect to EC2 (default is 'default',
+	                       see Boto docs for profile credential options)
 	  --verbose, -v        enable verbose output (-vvv for more)
 	  --version            display version number and exit
 	  --config CONFIG.YML  read a yaml configuration file.  specify tags to propagate without changing code.

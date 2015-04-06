@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 
 class GraffitiMonkey(object):
-    def __init__(self, region, instance_tags_to_propagate, volume_tags_to_propagate, dryrun, append):
+    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, dryrun, append):
         # This list of tags associated with an EC2 instance to propagate to
         # attached EBS volumes
         self._instance_tags_to_propagate = instance_tags_to_propagate
@@ -39,17 +39,28 @@ class GraffitiMonkey(object):
         # The region to operate in
         self._region = region
 
+        # The profile to use
+        self._profile = profile
+
         # Whether this is a dryrun
         self._dryrun = dryrun
 
         # If we are appending tags
         self._append = append
 
-        log.info("Connecting to region %s", self._region)
+        log.info("Connecting to region %s using profile %s", self._region, self._profile)
         try:
-            self._conn = ec2.connect_to_region(self._region)
+            self._conn = ec2.connect_to_region(self._region, profile_name=self._profile)
         except boto.exception.NoAuthHandlerFound:
             raise GraffitiMonkeyException('No AWS credentials found - check your credentials')
+        except boto.provider.ProfileNotFoundError:
+            log.info("Connecting to region %s using default credentials", self._region)
+            try:
+                self._conn = ec2.connect_to_region(self._region)
+            except boto.exception.NoAuthHandlerFound:
+                raise GraffitiMonkeyException('No AWS credentials found - check your credentials')
+
+
 
 
     def propagate_tags(self):
@@ -75,12 +86,12 @@ class GraffitiMonkey(object):
             if volume.status != 'in-use':
                 log.debug('Skipping %s as it is not attached to an EC2 instance, so there is nothing to propagate', volume.id)
                 continue
-            for attempt in range(10):
+            for attempt in range(5):
                 try:
                     self.tag_volume(volume)
                 except boto.exception.EC2ResponseError, e:
-                    log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, attempt)
-                    time.sleep(attempt)
+                    log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
+                    break
                 except boto.exception.BotoServerError, e:
                     log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, attempt)
                     time.sleep(attempt)
@@ -137,12 +148,12 @@ class GraffitiMonkey(object):
         for snapshot in snapshots:
             this_snap +=1
             log.info ('Processing snapshot %d of %d total snapshots', this_snap, total_snaps)
-            for attempt in range(10):
+            for attempt in range(5):
                 try:
                     self.tag_snapshot(snapshot)
                 except boto.exception.EC2ResponseError, e:
-                    log.error("Encountered Error %s on snapshot %s, waiting %d seconds then retrying", e.error_code, snapshot.id, attempt)
-                    time.sleep(attempt)
+                    log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
+                    break
                 except boto.exception.BotoServerError, e:
                     log.error("Encountered Error %s on snapshot %s, waiting %d seconds then retrying", e.error_code, snapshot.id, attempt)
                     time.sleep(attempt)
