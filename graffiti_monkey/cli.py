@@ -30,6 +30,7 @@ log = logging.getLogger(__name__)
 class GraffitiMonkeyCli(object):
     def __init__(self):
         self.region = None
+        self.profile = None
         self.monkey = None
         self.args = None
         self.config = {"_instance_tags_to_propagate": ['Name'],
@@ -53,6 +54,8 @@ class GraffitiMonkeyCli(object):
         parser = argparse.ArgumentParser(description='Propagates tags from AWS EC2 instances to EBS volumes, and then to EBS snapshots. This makes it much easier to find things down the road.')
         parser.add_argument('--region', metavar='REGION',
                             help='the region to tag things in (default is current region of EC2 instance this is running on). E.g. us-east-1')
+        parser.add_argument('--profile', metavar='PROFILE',
+                            help='the profile (credentials) to use to connect to EC2')
         parser.add_argument('--verbose', '-v', action='count',
                             help='enable verbose output (-vvv for more)')
         parser.add_argument('--version', action='version', version='%(prog)s ' + __version__,
@@ -105,7 +108,16 @@ class GraffitiMonkeyCli(object):
                 GraffitiMonkeyCli._fail('Could not determine region. This script is either not running on an EC2 instance (in which case you should use the --region option), or the meta-data service is down')
 
             self.region = instance_metadata['placement']['availability-zone'][:-1]
-            log.debug("Running in region: %s", self.region)
+        log.debug("Running in region: %s", self.region)
+
+    def set_profile(self):
+        if "profile" in self.config.keys():
+            self.profile = self.config["profile"]
+        elif self.args.profile:
+            self.profile = self.args.profile
+        else:
+            self.profile = 'default'
+        log.debug("Using profile: %s", self.profile)
 
     def set_dryrun(self):
         self.dryrun = self.args.dryrun
@@ -115,6 +127,7 @@ class GraffitiMonkeyCli(object):
 
     def initialize_monkey(self):
         self.monkey = GraffitiMonkey(self.region,
+                                     self.profile,
                                      self.config["_instance_tags_to_propagate"],
                                      self.config["_volume_tags_to_propagate"],
                                      self.dryrun,
@@ -136,6 +149,7 @@ class GraffitiMonkeyCli(object):
 
         self.set_config()
         self.set_region()
+        self.set_profile()
         self.set_dryrun()
         self.set_append()
 
