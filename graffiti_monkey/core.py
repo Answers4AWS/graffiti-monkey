@@ -20,6 +20,8 @@ from exceptions import *
 import boto
 from boto import ec2
 
+import time
+
 __all__ = ('GraffitiMonkey', 'Logging')
 log = logging.getLogger(__name__)
 
@@ -73,14 +75,21 @@ class GraffitiMonkey(object):
             if volume.status != 'in-use':
                 log.debug('Skipping %s as it is not attached to an EC2 instance, so there is nothing to propagate', volume.id)
                 continue
-            try:
-                self.tag_volume(volume)
-            except boto.exception.EC2ResponseError, e:
-                log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
+            for attempt in range(10):
+                try:
+                    self.tag_volume(volume)
+                except boto.exception.EC2ResponseError, e:
+                    log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, attempt)
+                    time.sleep(attempt)
+                except boto.exception.BotoServerError, e:
+                    log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, attempt)
+                    time.sleep(attempt)
+                else:
+                    break
+            else:
+                log.error("Encountered Error %s on volume %s, %d retries failed, continuing", e.error_code, volume.id, attempt)
                 continue
-            except boto.exception.BotoServerError, e:
-                log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
-                continue
+
         log.info('Completed processing all volumes')
 
 
@@ -128,13 +137,19 @@ class GraffitiMonkey(object):
         for snapshot in snapshots:
             this_snap +=1
             log.info ('Processing snapshot %d of %d total snapshots', this_snap, total_snaps)
-            try:
-                self.tag_snapshot(snapshot)
-            except boto.exception.EC2ResponseError, e:
-                log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
-                continue
-            except boto.exception.BotoServerError, e:
-                log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
+            for attempt in range(10):
+                try:
+                    self.tag_snapshot(snapshot)
+                except boto.exception.EC2ResponseError, e:
+                    log.error("Encountered Error %s on snapshot %s, waiting %d seconds then retrying", e.error_code, snapshot.id, attempt)
+                    time.sleep(attempt)
+                except boto.exception.BotoServerError, e:
+                    log.error("Encountered Error %s on snapshot %s, waiting %d seconds then retrying", e.error_code, snapshot.id, attempt)
+                    time.sleep(attempt)
+                else:
+                    break
+            else:
+                log.error("Encountered Error %s on snapshot %s, %d retries failed, continuing", e.error_code, snapshot.id, attempt)
                 continue
         log.info('Completed processing all snapshots')
 

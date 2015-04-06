@@ -30,9 +30,9 @@ Usage
 	  --verbose, -v        enable verbose output (-vvv for more)
 	  --version            display version number and exit
 	  --config CONFIG.YML  read a yaml configuration file.  specify tags to propagate without changing code.
-    --dryrun             dryrun only, display tagging actions but do not perform them
-    --append             append propagated tags to existing tags (up to a total of ten tags). When not set,
-                         graffiti-monkey will overwrite existing tags.
+	  --dryrun             dryrun only, display tagging actions but do not perform them
+	  --append             append propagated tags to existing tags (up to a total of ten tags). When not set,
+	                       graffiti-monkey will overwrite existing tags.
 
 Examples
 --------
