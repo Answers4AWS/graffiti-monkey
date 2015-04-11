@@ -35,6 +35,8 @@ Usage
 	  --dryrun             dryrun only, display tagging actions but do not perform them
 	  --append             append propagated tags to existing tags (up to a total of ten tags). When not set,
 	                       graffiti-monkey will overwrite existing tags.
+	  --volumes            volume(s) to tag
+	  --snapshots          snapshot(s) to tag
 
 Examples
 --------
@@ -129,13 +131,35 @@ Graffiti-monkey itself can be configured using a yaml file
     - 'device'
     - 'Owner'
 
+  _volumes_to_tag:
+  # An empty list means tag all volumes
+  # Example entries:
+  #  - 'vol-1ab2c345'
+  #  - 'vol-6de7f890'
+
+  _snapshots_to_tag:
+  # An empty list means tag all snapshots
+  # Example entries:
+  #  - 'snap-12ab3c45'
+  #  - 'snap-6de7f890'
+
 :code:`_instance_tags_to_propagate` is used to define the tags that are propagated
 from an instance to its volumes. :code:`_volume_tags_to_propagate` defines the tags
 that are propagated from a volume to its snapshots.
 
+:code:`_volumes_to_tag` is used to define the volumes that are tagged. Leave empty
+to tag all volumes. :code:`_snapshots_to_tag` is used to define the snapshots to
+be tagged. Leave empty to tag all snapshots.
+
+If the configuration file is used, the _ entry headers must exist (those entries
+having no values or commented out values [as shown] is acceptable).
+
 When using yaml configuration files you need to have pyYAML. This can be easily setup
  using pip :code:`pip install PyYAML`.  If you don't use config files you don't have
  this limitation.
+
+If options are specified in both the config file and on the command line, the config
+file options are used.
 
 
 Wiki

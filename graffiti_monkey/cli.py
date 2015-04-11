@@ -34,9 +34,12 @@ class GraffitiMonkeyCli(object):
         self.monkey = None
         self.args = None
         self.config = {"_instance_tags_to_propagate": ['Name'],
-                       "_volume_tags_to_propagate": ['Name', 'instance_id', 'device']}
+                       "_volume_tags_to_propagate": ['Name', 'instance_id', 'device'],
+                       }
         self.dryrun = False
         self.append = False
+        self.volumes = None
+        self.snapshots = None
 
     @staticmethod
     def _fail(message="Unknown failure", code=1):
@@ -66,6 +69,10 @@ class GraffitiMonkeyCli(object):
                             help='dryrun only, display tagging actions but do not perform them')
         parser.add_argument('--append', action='store_true',
                             help='append propagated tags to existing tags (up to a total of ten tags)')
+        parser.add_argument('--volumes', action='append',
+                            help='volume-ids to tag')
+        parser.add_argument('--snapshots', action='append',
+                            help='snapshot-ids to tag')
         self.args = parser.parse_args(self.get_argv())
 
     @staticmethod
@@ -125,14 +132,28 @@ class GraffitiMonkeyCli(object):
     def set_append(self):
         self.append = self.args.append
 
+    def set_volumes(self):
+        if self.config["_volumes_to_tag"]:
+            self.volumes = self.config["_volumes_to_tag"]
+        elif self.args.volumes:
+            self.volumes = self.args.volumes
+
+    def set_snapshots(self):
+        if self.config["_snapshots_to_tag"]:
+            self.snapshots = self.config["_snapshots_to_tag"]
+        elif self.args.snapshots:
+            self.snapshots = self.args.snapshots
+
     def initialize_monkey(self):
         self.monkey = GraffitiMonkey(self.region,
                                      self.profile,
                                      self.config["_instance_tags_to_propagate"],
                                      self.config["_volume_tags_to_propagate"],
                                      self.dryrun,
-                                     self.append)
-
+                                     self.append,
+                                     self.volumes,
+                                     self.snapshots
+                                     )
 
     def start_tags_propagation(self):
         self.monkey.propagate_tags()
@@ -152,6 +173,8 @@ class GraffitiMonkeyCli(object):
         self.set_profile()
         self.set_dryrun()
         self.set_append()
+        self.set_volumes()
+        self.set_snapshots()
 
         try:
             self.initialize_monkey()
