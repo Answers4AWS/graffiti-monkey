@@ -37,6 +37,8 @@ Usage
 	                       graffiti-monkey will overwrite existing tags.
 	  --volumes            volume(s) to tag
 	  --snapshots          snapshot(s) to tag
+	  --novolumes          do not perform volume tagging
+	  --nosnapshots        do not perform snapshot tagging
 
 Examples
 --------

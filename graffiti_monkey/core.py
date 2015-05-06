@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 
 class GraffitiMonkey(object):
-    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, dryrun, append, volumes_to_tag, snapshots_to_tag):
+    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, dryrun, append, volumes_to_tag, snapshots_to_tag, novolumes, nosnapshots):
         # This list of tags associated with an EC2 instance to propagate to
         # attached EBS volumes
         self._instance_tags_to_propagate = instance_tags_to_propagate
@@ -54,6 +54,12 @@ class GraffitiMonkey(object):
         # Snapshots we will tag
         self._snapshots_to_tag = snapshots_to_tag
 
+        # If we process volumes
+        self._novolumes = novolumes
+
+        # If we process snapshots
+        self._nosnapshots = nosnapshots
+
         log.info("Connecting to region %s using profile %s", self._region, self._profile)
         try:
             self._conn = ec2.connect_to_region(self._region, profile_name=self._profile)
@@ -73,9 +79,11 @@ class GraffitiMonkey(object):
         ''' Propagates tags by copying them from EC2 instance to EBS volume, and
         then to snapshot '''
 
-        self.tag_volumes()
-        self.tag_snapshots()
+        if not self._novolumes:
+            self.tag_volumes()
 
+        if not self._nosnapshots:
+            self.tag_snapshots()
 
     def tag_volumes(self):
         ''' Gets a list of volumes, and then loops through them tagging

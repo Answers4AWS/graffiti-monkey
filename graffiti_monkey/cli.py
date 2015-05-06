@@ -40,6 +40,8 @@ class GraffitiMonkeyCli(object):
         self.append = False
         self.volumes = None
         self.snapshots = None
+        self.novolumes = False
+        self.nosnapshots = False
 
     @staticmethod
     def _fail(message="Unknown failure", code=1):
@@ -72,7 +74,11 @@ class GraffitiMonkeyCli(object):
         parser.add_argument('--volumes', action='append',
                             help='volume-ids to tag')
         parser.add_argument('--snapshots', action='append',
-                            help='snapshot-ids to tag')
+                            help='snapshot-ids to tag'),
+        parser.add_argument('--novolumes', action='store_true',
+                            help='do not perform volume tagging')
+        parser.add_argument('--nosnapshots', action='store_true',
+                            help='do not perform snapshot tagging')
         self.args = parser.parse_args(self.get_argv())
 
     @staticmethod
@@ -144,6 +150,12 @@ class GraffitiMonkeyCli(object):
         elif self.args.snapshots:
             self.snapshots = self.args.snapshots
 
+    def set_novolumes(self):
+        self.novolumes = self.args.novolumes
+
+    def set_nosnapshots(self):
+        self.nosnapshots = self.args.nosnapshots
+
     def initialize_monkey(self):
         self.monkey = GraffitiMonkey(self.region,
                                      self.profile,
@@ -152,7 +164,9 @@ class GraffitiMonkeyCli(object):
                                      self.dryrun,
                                      self.append,
                                      self.volumes,
-                                     self.snapshots
+                                     self.snapshots,
+                                     self.novolumes,
+                                     self.nosnapshots
                                      )
 
     def start_tags_propagation(self):
@@ -175,6 +189,8 @@ class GraffitiMonkeyCli(object):
         self.set_append()
         self.set_volumes()
         self.set_snapshots()
+        self.set_novolumes()
+        self.set_nosnapshots()
 
         try:
             self.initialize_monkey()
