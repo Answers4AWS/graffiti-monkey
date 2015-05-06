@@ -60,6 +60,8 @@ class GraffitiMonkey(object):
         # If we process snapshots
         self._nosnapshots = nosnapshots
 
+        log.info("Starting Graffiti Monkey")
+        log.info("Options: dryrun %s, append %s, novolumes %s, nosnapshots %s", self._dryrun, self._append, self._novolumes, self._nosnapshots)
         log.info("Connecting to region %s using profile %s", self._region, self._profile)
         try:
             self._conn = ec2.connect_to_region(self._region, profile_name=self._profile)
