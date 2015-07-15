@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 
 class GraffitiMonkey(object):
-    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, dryrun, append):
+    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, dryrun, append, volumes_to_tag, snapshots_to_tag, novolumes, nosnapshots):
         # This list of tags associated with an EC2 instance to propagate to
         # attached EBS volumes
         self._instance_tags_to_propagate = instance_tags_to_propagate
@@ -48,6 +48,20 @@ class GraffitiMonkey(object):
         # If we are appending tags
         self._append = append
 
+        # Volumes we will tag
+        self._volumes_to_tag = volumes_to_tag
+
+        # Snapshots we will tag
+        self._snapshots_to_tag = snapshots_to_tag
+
+        # If we process volumes
+        self._novolumes = novolumes
+
+        # If we process snapshots
+        self._nosnapshots = nosnapshots
+
+        log.info("Starting Graffiti Monkey")
+        log.info("Options: dryrun %s, append %s, novolumes %s, nosnapshots %s", self._dryrun, self._append, self._novolumes, self._nosnapshots)
         log.info("Connecting to region %s using profile %s", self._region, self._profile)
         try:
             self._conn = ec2.connect_to_region(self._region, profile_name=self._profile)
@@ -67,18 +81,42 @@ class GraffitiMonkey(object):
         ''' Propagates tags by copying them from EC2 instance to EBS volume, and
         then to snapshot '''
 
-        self.tag_volumes()
-        self.tag_snapshots()
+        if not self._novolumes:
+            self.tag_volumes()
 
+        if not self._nosnapshots:
+            self.tag_snapshots()
 
     def tag_volumes(self):
-        ''' Gets a list of all volumes, and then loops through them tagging
+        ''' Gets a list of volumes, and then loops through them tagging
         them '''
 
-        log.info('Getting list of all volumes')
-        volumes = self._conn.get_all_volumes()
+        volumes = []
+        invalid_volumes = []
+        if self._volumes_to_tag:
+            log.info('Using volume list from cli/config file')
+
+            ''' We can't trust the volume list from the config file so we
+            test the status of each volume and remove any that raise an exception '''
+            for volume in self._volumes_to_tag:
+                try:
+                    self._conn.get_all_volume_status(volume_ids=volume)
+                except boto.exception.EC2ResponseError, e:
+                    log.info('Volume %s does not exist and will not be tagged', volume)
+                    invalid_volumes.append(volume)
+            for volume in invalid_volumes:
+                self._volumes_to_tag.remove(volume)
+            if self._volumes_to_tag:
+                volumes = self._conn.get_all_volumes(volume_ids=self._volumes_to_tag)
+        else:
+            log.info('Getting list of all volumes')
+            volumes = self._conn.get_all_volumes()
+        if not volumes:
+            log.info('No volumes found')
+            return True
+        log.debug('Volume list >%s<', volumes)
         total_vols = len(volumes)
-        log.info('Found %d volumes', total_vols)
+        log.info('Found %d volume(s)', total_vols)
         this_vol = 0
         for volume in volumes:
             this_vol +=1
@@ -137,13 +175,35 @@ class GraffitiMonkey(object):
 
 
     def tag_snapshots(self):
-        ''' Gets a list of all snapshots, and then loops through them tagging
+        ''' Gets a list of snapshots, and then loops through them tagging
         them '''
 
-        log.info('Getting list of all snapshots')
-        snapshots = self._conn.get_all_snapshots(owner='self')
+        snapshots = []
+        invalid_snapshots = []
+        if self._snapshots_to_tag:
+            log.info('Using snapshot list from cli/config file')
+
+            ''' We can't trust the snapshot list from the config file so we
+            test the status of each and remove any that raise an exception '''
+            for snapshot in self._snapshots_to_tag:
+                try:
+                    self._conn.get_snapshot_attribute(snapshot_id=snapshot)
+                except boto.exception.EC2ResponseError, e:
+                    log.info('Snapshot %s does not exist and will not be tagged', snapshot)
+                    invalid_snapshots.append(snapshot)
+            for snapshot in invalid_snapshots:
+                self._snapshots_to_tag.remove(snapshot)
+            if self._snapshots_to_tag:
+                snapshots = self._conn.get_all_snapshots(snapshot_ids=self._snapshots_to_tag,owner='self')
+        else:
+            log.info('Getting list of all snapshots')
+            snapshots = self._conn.get_all_snapshots(owner='self')
+        if not snapshots:
+            log.info('No snapshots found')
+            return True
+        log.debug('Snapshot list >%s<', snapshots)
         total_snaps = len(snapshots)
-        log.info('Found %d snapshots', total_snaps)
+        log.info('Found %d snapshot(s)', total_snaps)
         this_snap = 0
         for snapshot in snapshots:
             this_snap +=1

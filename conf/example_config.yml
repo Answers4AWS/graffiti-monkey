@@ -7,3 +7,15 @@ _volume_tags_to_propagate:
   - 'Name'
   - 'instance_id'
   - 'device'
+
+_volumes_to_tag:
+# An empty list means tag all volumes
+# Example entries:
+#  - 'vol-1ab2c345'
+#  - 'vol-6de7f890'
+
+_snapshots_to_tag:
+# An empty list means tag all snapshots
+# Example entries:
+#  - 'snap-12ab3c45'
+#  - 'snap-6de7f890'
