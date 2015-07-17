@@ -139,13 +139,13 @@ class GraffitiMonkeyCli(object):
         self.append = self.args.append
 
     def set_volumes(self):
-        if self.config["_volumes_to_tag"]:
+        if "_volumes_to_tag" in self.config.keys():
             self.volumes = self.config["_volumes_to_tag"]
         elif self.args.volumes:
             self.volumes = self.args.volumes
 
     def set_snapshots(self):
-        if self.config["_snapshots_to_tag"]:
+        if "_snapshots_to_tag" in self.config.keys():
             self.snapshots = self.config["_snapshots_to_tag"]
         elif self.args.snapshots:
             self.snapshots = self.args.snapshots
