@@ -91,6 +91,7 @@ class GraffitiMonkey(object):
         ''' Gets a list of volumes, and then loops through them tagging
         them '''
 
+        storage_counter = 0
         volumes = []
         invalid_volumes = []
         if self._volumes_to_tag:
@@ -120,6 +121,7 @@ class GraffitiMonkey(object):
         this_vol = 0
         for volume in volumes:
             this_vol +=1
+            storage_counter += volume.size
             log.info ('Processing volume %d of %d total volumes', this_vol, total_vols)
             if volume.status != 'in-use':
                 log.debug('Skipping %s as it is not attached to an EC2 instance, so there is nothing to propagate', volume.id)
@@ -139,6 +141,7 @@ class GraffitiMonkey(object):
                 log.error("Encountered Error %s on volume %s, %d retries failed, continuing", e.error_code, volume.id, attempt)
                 continue
 
+        log.info('Processed a total of {0} GB of AWS Volumes'.format(storage_counter))
         log.info('Completed processing all volumes')
 
 
