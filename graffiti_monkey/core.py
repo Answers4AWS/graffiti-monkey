@@ -14,7 +14,6 @@
 
 import logging
 
-from cache import Memorize
 from exceptions import *
 
 import boto
