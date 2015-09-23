@@ -92,43 +92,58 @@ class GraffitiMonkey(object):
         them '''
 
         storage_counter = 0
-        volumes = []
-        invalid_volumes = []
+        volumes   = []
+        instances = []
+
         if self._volumes_to_tag:
             log.info('Using volume list from cli/config file')
 
+            volumes = self._conn.get_all_volumes(
+                    filters = [{ 'volume-id': self._volumes_to_tag }]
+                    )
+            volume_ids = [v.id for v in volumes]
+
             ''' We can't trust the volume list from the config file so we
             test the status of each volume and remove any that raise an exception '''
-            for volume in self._volumes_to_tag:
-                try:
-                    self._conn.get_all_volume_status(volume_ids=volume)
-                except boto.exception.EC2ResponseError, e:
+            for volume_id in self._volumes_to_tag:
+                if volume_id not in volume_ids
                     log.info('Volume %s does not exist and will not be tagged', volume)
-                    invalid_volumes.append(volume)
-            for volume in invalid_volumes:
-                self._volumes_to_tag.remove(volume)
-            if self._volumes_to_tag:
-                volumes = self._conn.get_all_volumes(volume_ids=self._volumes_to_tag)
+                    self._volumes_to_tag.remove(volume)
+
         else:
             log.info('Getting list of all volumes')
             volumes = self._conn.get_all_volumes()
+
         if not volumes:
             log.info('No volumes found')
             return True
+
+        ''' Fetching all the relevant instances up-front is more efficient than
+        trying to query them one at a time '''
+        all_instance_ids = set(v.attach_data.instance_id for v in volumes)
+        reservation = self._conn.get_all_instances(
+                filters: [{'instance-id': all_instance_ids}]
+                )
+
+        # Make this a dict, since we'll need to lookup by instance id
+        instances = { i.id: i for i in reservation.instances }
+
         log.debug('Volume list >%s<', volumes)
         total_vols = len(volumes)
         log.info('Found %d volume(s)', total_vols)
         this_vol = 0
         for volume in volumes:
-            this_vol +=1
+            this_vol += 1
             storage_counter += volume.size
             log.info ('Processing volume %d of %d total volumes', this_vol, total_vols)
+
             if volume.status != 'in-use':
                 log.debug('Skipping %s as it is not attached to an EC2 instance, so there is nothing to propagate', volume.id)
                 continue
+
             for attempt in range(5):
                 try:
-                    self.tag_volume(volume)
+                    self.tag_volume(volume, instances)
                 except boto.exception.EC2ResponseError, e:
                     log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
                     break
@@ -145,7 +160,7 @@ class GraffitiMonkey(object):
         log.info('Completed processing all volumes')
 
 
-    def tag_volume(self, volume):
+    def tag_volume(self, volume, instances):
         ''' Tags a specific volume '''
 
         instance_id = None
@@ -155,7 +170,7 @@ class GraffitiMonkey(object):
         if volume.attach_data.device:
             device = volume.attach_data.device
 
-        instance_tags = self._get_resource_tags(instance_id)
+        instance_tags = instances[instance_id].tags
 
         tags_to_set = {}
         if self._append:
