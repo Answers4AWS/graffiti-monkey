@@ -107,8 +107,8 @@ class GraffitiMonkey(object):
             test the status of each volume and remove any that raise an exception '''
             for volume_id in self._volumes_to_tag:
                 if volume_id not in volume_ids
-                    log.info('Volume %s does not exist and will not be tagged', volume)
-                    self._volumes_to_tag.remove(volume)
+                    log.info('Volume %s does not exist and will not be tagged', volume_id)
+                    self._volumes_to_tag.remove(volume_id)
 
         else:
             log.info('Getting list of all volumes')
@@ -197,38 +197,54 @@ class GraffitiMonkey(object):
         them '''
 
         snapshots = []
-        invalid_snapshots = []
         if self._snapshots_to_tag:
             log.info('Using snapshot list from cli/config file')
 
+            log.info('Using volume list from cli/config file')
+
+            snapshots = self._conn.get_all_snapshots(
+                    owner = 'self',
+                    filters = {
+                        'snapshot-id': self._snapshots_to_tag,
+                        }
+                    )
+            snapshot_ids = [s.id for s in snapshots]
+
             ''' We can't trust the snapshot list from the config file so we
             test the status of each and remove any that raise an exception '''
-            for snapshot in self._snapshots_to_tag:
-                try:
-                    self._conn.get_snapshot_attribute(snapshot_id=snapshot)
-                except boto.exception.EC2ResponseError, e:
-                    log.info('Snapshot %s does not exist and will not be tagged', snapshot)
-                    invalid_snapshots.append(snapshot)
-            for snapshot in invalid_snapshots:
-                self._snapshots_to_tag.remove(snapshot)
-            if self._snapshots_to_tag:
-                snapshots = self._conn.get_all_snapshots(snapshot_ids=self._snapshots_to_tag,owner='self')
+            for snapshot_id in self._snapshots_to_tag:
+                if volume_id not in volume_ids
+                    log.info('Snapshot %s does not exist and will not be tagged', snapshot_id)
+                    self._snapshots_to_tag.remove(snapshot)
         else:
             log.info('Getting list of all snapshots')
             snapshots = self._conn.get_all_snapshots(owner='self')
+
         if not snapshots:
             log.info('No snapshots found')
             return True
+
+        ''' Fetching all the relevant volumes up-front is more efficient than
+        trying to query them one at a time '''
+        all_volume_ids = set(s.volume_id for s in snapshots)
+        volumes = self._conn.get_all_volumes(
+                filters: [{'volume-id': all_volume_ids}]
+                )
+
+        # Make this a dict, since we'll need to lookup by volume id
+        volumes = { v.id: v for v in volumes }
+
         log.debug('Snapshot list >%s<', snapshots)
         total_snaps = len(snapshots)
         log.info('Found %d snapshot(s)', total_snaps)
         this_snap = 0
+
         for snapshot in snapshots:
-            this_snap +=1
+            this_snap += 1
             log.info ('Processing snapshot %d of %d total snapshots', this_snap, total_snaps)
             for attempt in range(5):
                 try:
-                    self.tag_snapshot(snapshot)
+                    self.tag_snapshot(snapshot, volumes)
                 except boto.exception.EC2ResponseError, e:
                     log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
                     break
@@ -242,7 +258,7 @@ class GraffitiMonkey(object):
                 continue
         log.info('Completed processing all snapshots')
 
-    def tag_snapshot(self, snapshot):
+    def tag_snapshot(self, snapshot, volumes):
         ''' Tags a specific snapshot '''
 
         volume_id = snapshot.volume_id
@@ -250,17 +266,15 @@ class GraffitiMonkey(object):
 #            log.debug('Skipping %s as it does not have volume information', snapshot.id)
 #            continue
 
-        volume_tags = self._get_resource_tags(volume_id)
+        volume_tags = volumes[volume_id].tags
 
         tags_to_set = {}
         if self._append:
-            tags_to_set = self._get_resource_tags(snapshot.id)
+            tags_to_set = snapshot.tags
         for tag_name in self._volume_tags_to_propagate:
             log.debug('Trying to propagate volume tag: %s', tag_name)
             if tag_name in volume_tags:
-                value = volume_tags[tag_name]
-                tags_to_set[tag_name] = value
-
+                tags_to_set[tag_name] = volume_tags[tag_name]
 
         if self._dryrun:
             log.info('DRYRUN: Snapshot %s would have been tagged %s', snapshot.id, tags_to_set)
@@ -268,21 +282,6 @@ class GraffitiMonkey(object):
             self._set_resource_tags(snapshot, tags_to_set)
         return True
 
-
-    @Memorize
-    def _get_resource_tags(self, resource_id):
-        ''' Gets all of the tags associated with an AWS resource (such as an
-        instance-id, volume-id, etc) as a dictionary '''
-
-        resource_tags = {}
-        if resource_id:
-            # Get the set of tags for a volume
-            log.debug('Fetching tags for %s', resource_id)
-            tags = self._conn.get_all_tags({'resource-id': resource_id})
-            for tag in tags:
-                resource_tags[tag.name] = tag.value
-
-        return resource_tags
 
 
     def _set_resource_tags(self, resource, tags):
