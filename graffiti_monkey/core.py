@@ -277,11 +277,16 @@ class GraffitiMonkey(object):
             msg = 'Resource %s is not an instance of TaggedEC2Object' % resource
             raise GraffitiMonkeyException(msg)
 
+        delta_tags = {}
+
         for tag_key, tag_value in tags.iteritems():
             if not tag_key in resource.tags or resource.tags[tag_key] != tag_value:
-                log.info('Tagging %s with [%s: %s]', resource.id, tag_key, tag_value)
-                resource.add_tag(tag_key, tag_value)
+                delta_tags[tag_key] = tag_value
 
+        if len(delta_tags) == 0:
+            return
+
+        resource.add_tags(delta_tags)
 
 
 class Logging(object):
