@@ -80,11 +80,14 @@ class GraffitiMonkey(object):
         ''' Propagates tags by copying them from EC2 instance to EBS volume, and
         then to snapshot '''
 
+        volumes = []
         if not self._novolumes:
-            self.tag_volumes()
+            volumes = self.tag_volumes()
+
+        volumes = { v.id: v for v in volumes }
 
         if not self._nosnapshots:
-            self.tag_snapshots()
+            self.tag_snapshots(volumes)
 
     def tag_volumes(self):
         ''' Gets a list of volumes, and then loops through them tagging
@@ -191,7 +194,7 @@ class GraffitiMonkey(object):
         return True
 
 
-    def tag_snapshots(self):
+    def tag_snapshots(self, volumes):
         ''' Gets a list of snapshots, and then loops through them tagging
         them '''
 
@@ -223,15 +226,13 @@ class GraffitiMonkey(object):
             log.info('No snapshots found')
             return True
 
-        ''' Fetching all the relevant volumes up-front is more efficient than
-        trying to query them one at a time '''
-        all_volume_ids = set(s.volume_id for s in snapshots)
-        volumes = self._conn.get_all_volumes(
-                filters: [{'volume-id': all_volume_ids}]
+        ''' Fetch any extra volumes that weren't carried over from tag_volumes() (if any) '''
+        extra_volumes = self._conn.get_all_volumes(
+                filters: [{'volume-id': extra_volume_ids}]
                 )
 
-        # Make this a dict, since we'll need to lookup by volume id
-        volumes = { v.id: v for v in volumes }
+        for vol in extra_volumes:
+            volumes[vol.id] = vol
 
         log.debug('Snapshot list >%s<', snapshots)
         total_snaps = len(snapshots)
@@ -261,9 +262,6 @@ class GraffitiMonkey(object):
         ''' Tags a specific snapshot '''
 
         volume_id = snapshot.volume_id
-#        if volume_id == '':
-#            log.debug('Skipping %s as it does not have volume information', snapshot.id)
-#            continue
 
         volume_tags = volumes[volume_id].tags
 
@@ -280,7 +278,6 @@ class GraffitiMonkey(object):
         else:
             self._set_resource_tags(snapshot, tags_to_set)
         return True
-
 
 
     def _set_resource_tags(self, resource, tags):
@@ -300,6 +297,7 @@ class GraffitiMonkey(object):
             return
 
         resource.add_tags(delta_tags)
+
 
 
 class Logging(object):
