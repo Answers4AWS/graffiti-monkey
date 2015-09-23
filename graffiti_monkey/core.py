@@ -159,7 +159,7 @@ class GraffitiMonkey(object):
 
         tags_to_set = {}
         if self._append:
-            tags_to_set = self._get_resource_tags(volume.id)
+            tags_to_set = volume.tags
         for tag_name in self._instance_tags_to_propagate:
             log.debug('Trying to propagate instance tag: %s', tag_name)
             if tag_name in instance_tags:
