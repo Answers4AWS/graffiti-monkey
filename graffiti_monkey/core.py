@@ -269,6 +269,10 @@ class GraffitiMonkey(object):
 
         volume_id = snapshot.volume_id
 
+        if volume_id not in volumes:
+            log.info("Snapshot %s volume %s not found. Snapshot will not be tagged", snapshot.id, volume_id)
+            return
+
         volume_tags = volumes[volume_id].tags
 
         tags_to_set = {}
