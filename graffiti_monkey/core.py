@@ -208,8 +208,6 @@ class GraffitiMonkey(object):
         if self._snapshots_to_tag:
             log.info('Using snapshot list from cli/config file')
 
-            log.info('Using volume list from cli/config file')
-
             # Max of 200 filters in a request
             for chunk in (self._snapshots_to_tag[n:n+200] for n in xrange(0, len(self._snapshots_to_tag), 200)):
                 chunk_snapshots = self._conn.get_all_snapshots(
