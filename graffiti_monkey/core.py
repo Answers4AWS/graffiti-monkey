@@ -74,8 +74,6 @@ class GraffitiMonkey(object):
                 raise GraffitiMonkeyException('No AWS credentials found - check your credentials')
 
 
-
-
     def propagate_tags(self):
         ''' Propagates tags by copying them from EC2 instance to EBS volume, and
         then to snapshot '''
@@ -95,14 +93,26 @@ class GraffitiMonkey(object):
 
         storage_counter = 0
         volumes   = []
-        instances = []
+        instances = {}
 
         if self._volumes_to_tag:
             log.info('Using volume list from cli/config file')
 
-            volumes = self._conn.get_all_volumes(
-                    filters = { 'volume-id': self._volumes_to_tag }
-                    )
+            # Max of 200 filters in a request
+            for chunk in (self._volumes_to_tag[n:n+200] for n in xrange(0, len(self._volumes_to_tag), 200)):
+                chunk_volumes = self._conn.get_all_volumes(
+                        filters = { 'volume-id': chunk }
+                        )
+                volumes += chunk_volumes
+
+                chunk_instance_ids = set(v.attach_data.instance_id for v in chunk_volumes)
+                reservations = self._conn.get_all_instances(
+                        filters = {'instance-id': [id for id in chunk_instance_ids]}
+                        )
+                for reservation in reservations:
+                    for instance in reservation.instances:
+                        instances[instance.id] = instance
+
             volume_ids = [v.id for v in volumes]
 
             ''' We can't trust the volume list from the config file so we
@@ -115,23 +125,14 @@ class GraffitiMonkey(object):
         else:
             log.info('Getting list of all volumes')
             volumes = self._conn.get_all_volumes()
+            reservations = self._conn.get_all_instances()
+            for reservation in reservations:
+                for instance in reservation.instances:
+                    instances[instance.id] = instance
 
         if not volumes:
             log.info('No volumes found')
             return True
-
-        ''' Fetching all the relevant instances up-front is more efficient than
-        trying to query them one at a time '''
-        all_instance_ids = set(v.attach_data.instance_id for v in volumes)
-        reservations = self._conn.get_all_instances(
-                filters = {'instance-id': [id for id in all_instance_ids]}
-                )
-
-        # Make this a dict, since we'll need to lookup by instance id
-        instances = {}
-        for reservation in reservations:
-            for instance in reservation.instances:
-                instances[instance.id] = instance
 
         log.debug('Volume list >%s<', volumes)
         total_vols = len(volumes)
@@ -209,10 +210,12 @@ class GraffitiMonkey(object):
 
             log.info('Using volume list from cli/config file')
 
-            snapshots = self._conn.get_all_snapshots(
-                    owner = 'self',
-                    filters = { 'snapshot-id': self._snapshots_to_tag }
-                    )
+            # Max of 200 filters in a request
+            for chunk in (self._snapshots_to_tag[n:n+200] for n in xrange(0, len(self._snapshots_to_tag), 200)):
+                chunk_snapshots = self._conn.get_all_snapshots(
+                        filters = { 'snapshot-id': chunk }
+                        )
+                snapshots += chunk_snapshots
             snapshot_ids = [s.id for s in snapshots]
 
             ''' We can't trust the snapshot list from the config file so we
@@ -233,12 +236,12 @@ class GraffitiMonkey(object):
         extra_volume_ids = [id for id in all_volume_ids if id not in volumes]
 
         ''' Fetch any extra volumes that weren't carried over from tag_volumes() (if any) '''
-        extra_volumes = self._conn.get_all_volumes(
-                filters = {'volume-id': extra_volume_ids}
-                )
-
-        for vol in extra_volumes:
-            volumes[vol.id] = vol
+        for chunk in (extra_volume_ids[n:n+200] for n in xrange(0, len(extra_volume_ids), 200)):
+            extra_volumes = self._conn.get_all_volumes(
+                    filters = { 'volume-id': chunk }
+                    )
+            for vol in extra_volumes:
+                volumes[vol.id] = vol
 
         log.debug('Snapshot list >%s<', snapshots)
         total_snaps = len(snapshots)
