@@ -307,6 +307,7 @@ class GraffitiMonkey(object):
         if len(delta_tags) == 0:
             return
 
+        log.info('Tagging %s with [%s]', resource.id, delta_tags)
         resource.add_tags(delta_tags)
 
 
