@@ -101,14 +101,14 @@ class GraffitiMonkey(object):
             log.info('Using volume list from cli/config file')
 
             volumes = self._conn.get_all_volumes(
-                    filters = [{ 'volume-id': self._volumes_to_tag }]
+                    filters = { 'volume-id': self._volumes_to_tag }
                     )
             volume_ids = [v.id for v in volumes]
 
             ''' We can't trust the volume list from the config file so we
             test the status of each volume and remove any that raise an exception '''
             for volume_id in self._volumes_to_tag:
-                if volume_id not in volume_ids
+                if volume_id not in volume_ids:
                     log.info('Volume %s does not exist and will not be tagged', volume_id)
                     self._volumes_to_tag.remove(volume_id)
 
@@ -123,12 +123,15 @@ class GraffitiMonkey(object):
         ''' Fetching all the relevant instances up-front is more efficient than
         trying to query them one at a time '''
         all_instance_ids = set(v.attach_data.instance_id for v in volumes)
-        reservation = self._conn.get_all_instances(
-                filters: [{'instance-id': all_instance_ids}]
+        reservations = self._conn.get_all_instances(
+                filters = {'instance-id': [id for id in all_instance_ids]}
                 )
 
         # Make this a dict, since we'll need to lookup by instance id
-        instances = { i.id: i for i in reservation.instances }
+        instances = {}
+        for reservation in reservations:
+            for instance in reservation.instances:
+                instances[instance.id] = instance
 
         log.debug('Volume list >%s<', volumes)
         total_vols = len(volumes)
@@ -160,6 +163,8 @@ class GraffitiMonkey(object):
 
         log.info('Processed a total of {0} GB of AWS Volumes'.format(storage_counter))
         log.info('Completed processing all volumes')
+
+        return volumes
 
 
     def tag_volume(self, volume, instances):
@@ -206,16 +211,14 @@ class GraffitiMonkey(object):
 
             snapshots = self._conn.get_all_snapshots(
                     owner = 'self',
-                    filters = {
-                        'snapshot-id': self._snapshots_to_tag,
-                        }
+                    filters = { 'snapshot-id': self._snapshots_to_tag }
                     )
             snapshot_ids = [s.id for s in snapshots]
 
             ''' We can't trust the snapshot list from the config file so we
             test the status of each and remove any that raise an exception '''
             for snapshot_id in self._snapshots_to_tag:
-                if volume_id not in volume_ids
+                if volume_id not in volume_ids:
                     log.info('Snapshot %s does not exist and will not be tagged', snapshot_id)
                     self._snapshots_to_tag.remove(snapshot)
         else:
@@ -228,7 +231,7 @@ class GraffitiMonkey(object):
 
         ''' Fetch any extra volumes that weren't carried over from tag_volumes() (if any) '''
         extra_volumes = self._conn.get_all_volumes(
-                filters: [{'volume-id': extra_volume_ids}]
+                filters = {'volume-id': extra_volume_ids}
                 )
 
         for vol in extra_volumes:
