@@ -218,7 +218,7 @@ class GraffitiMonkey(object):
             ''' We can't trust the snapshot list from the config file so we
             test the status of each and remove any that raise an exception '''
             for snapshot_id in self._snapshots_to_tag:
-                if volume_id not in volume_ids:
+                if snapshot_id not in snapshot_ids:
                     log.info('Snapshot %s does not exist and will not be tagged', snapshot_id)
                     self._snapshots_to_tag.remove(snapshot)
         else:
@@ -228,6 +228,9 @@ class GraffitiMonkey(object):
         if not snapshots:
             log.info('No snapshots found')
             return True
+
+        all_volume_ids = set(s.volume_id for s in snapshots)
+        extra_volume_ids = [id for id in all_volume_ids if id not in volumes]
 
         ''' Fetch any extra volumes that weren't carried over from tag_volumes() (if any) '''
         extra_volumes = self._conn.get_all_volumes(
