@@ -24,6 +24,7 @@ from boto.utils import get_instance_metadata
 
 
 __all__ = ('run', )
+logging.basicConfig(datefmt="%Y-%m-%d %H:%M:%S")
 log = logging.getLogger(__name__)
 
 
