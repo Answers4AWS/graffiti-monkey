@@ -35,6 +35,8 @@ class GraffitiMonkeyCli(object):
         self.args = None
         self.config = {"_instance_tags_to_propagate": ['Name'],
                        "_volume_tags_to_propagate": ['Name', 'instance_id', 'device'],
+                       "_volume_tags_to_be_set": [],
+                       "_snapshot_tags_to_be_set": [],
                        }
         self.dryrun = False
         self.append = False
@@ -161,6 +163,8 @@ class GraffitiMonkeyCli(object):
                                      self.profile,
                                      self.config["_instance_tags_to_propagate"],
                                      self.config["_volume_tags_to_propagate"],
+                                     self.config["_volume_tags_to_be_set"],
+                                     self.config["_snapshot_tags_to_be_set"],
                                      self.dryrun,
                                      self.append,
                                      self.volumes,

@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 
 class GraffitiMonkey(object):
-    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, dryrun, append, volumes_to_tag, snapshots_to_tag, novolumes, nosnapshots):
+    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, volume_tags_to_be_set, snapshot_tags_to_be_set, dryrun, append, volumes_to_tag, snapshots_to_tag, novolumes, nosnapshots):
         # This list of tags associated with an EC2 instance to propagate to
         # attached EBS volumes
         self._instance_tags_to_propagate = instance_tags_to_propagate
@@ -34,6 +34,12 @@ class GraffitiMonkey(object):
         # This is a list of tags associated with a volume to propagate to
         # a snapshot created from the volume
         self._volume_tags_to_propagate = volume_tags_to_propagate
+
+        # This is a dict of tags (keys and values) which will be set on the volumes (ebs)
+        self._volume_tags_to_be_set = volume_tags_to_be_set
+
+        # This is a dict of tags (keys and values) which will be set on the snapshots
+        self._snapshot_tags_to_be_set = snapshot_tags_to_be_set
 
         # The region to operate in
         self._region = region
@@ -193,6 +199,11 @@ class GraffitiMonkey(object):
         tags_to_set['instance_id'] = instance_id
         tags_to_set['device'] = device
 
+        # Set default tags for volume
+        for tag in self._volume_tags_to_be_set:
+            log.debug('Trying to set default tag: %s=%s', tag['key'], tag['value'])
+            tags_to_set[tag['key']] = tag['value']
+
         if self._dryrun:
             log.info('DRYRUN: Volume %s would have been tagged %s', volume.id, tags_to_set)
         else:
@@ -283,6 +294,11 @@ class GraffitiMonkey(object):
             log.debug('Trying to propagate volume tag: %s', tag_name)
             if tag_name in volume_tags:
                 tags_to_set[tag_name] = volume_tags[tag_name]
+
+        # Set default tags for snapshot
+        for tag in self._snapshot_tags_to_be_set:
+            log.debug('Trying to set default tag: %s=%s', tag['key'], tag['value'])
+            tags_to_set[tag['key']] = tag['value']
 
         if self._dryrun:
             log.info('DRYRUN: Snapshot %s would have been tagged %s', snapshot.id, tags_to_set)

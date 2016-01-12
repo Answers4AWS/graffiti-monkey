@@ -8,6 +8,14 @@ _volume_tags_to_propagate:
   - 'instance_id'
   - 'device'
 
+_volume_tags_to_be_set:
+  -  key:   'role'
+     value: 'ebs'
+
+_snapshot_tags_to_be_set:
+  -  key:   'role'
+     value: 'ebs_snapshot'
+
 _volumes_to_tag:
 # An empty list means tag all volumes
 # Example entries:
