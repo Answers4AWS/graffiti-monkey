@@ -133,6 +133,14 @@ Graffiti-monkey itself can be configured using a yaml file
     - 'device'
     - 'Owner'
 
+  _volume_tags_to_be_set:
+    -  key:   'NU_ROLE'
+       value: 'ebs'
+  
+  _snapshot_tags_to_be_set:
+    -  key:   'NU_ROLE'
+       value: 'ebs_snapshot'
+
   _volumes_to_tag:
   # An empty list means tag all volumes
   # Example entries:
@@ -148,6 +156,10 @@ Graffiti-monkey itself can be configured using a yaml file
 :code:`_instance_tags_to_propagate` is used to define the tags that are propagated
 from an instance to its volumes. :code:`_volume_tags_to_propagate` defines the tags
 that are propagated from a volume to its snapshots.
+
+:code:`_volume_tags_to_be_set` is used to define the tags that are set on volumes
+by default. :code:`_snapshot_tags_to_be_set` defines the tags that are on snapshots
+by default.
 
 :code:`_volumes_to_tag` is used to define the volumes that are tagged. Leave empty
 to tag all volumes. :code:`_snapshots_to_tag` is used to define the snapshots to
