@@ -109,10 +109,10 @@ class GraffitiMonkeyCli(object):
 
 
     def set_region(self):
-        if "region" in self.config.keys():
-            self.region = self.config["region"]
-        elif self.args.region:
+        if self.args.region:
             self.region = self.args.region
+        elif "region" in self.config.keys():
+            self.region = self.config["region"]
         else:
             # If no region was specified, assume this is running on an EC2 instance
             # and work out what region it is in
@@ -126,10 +126,10 @@ class GraffitiMonkeyCli(object):
         log.debug("Running in region: %s", self.region)
 
     def set_profile(self):
-        if "profile" in self.config.keys():
-            self.profile = self.config["profile"]
-        elif self.args.profile:
+        if self.args.profile:
             self.profile = self.args.profile
+        elif "profile" in self.config.keys():
+            self.profile = self.config["profile"]
         else:
             self.profile = 'default'
         log.debug("Using profile: %s", self.profile)
@@ -141,16 +141,16 @@ class GraffitiMonkeyCli(object):
         self.append = self.args.append
 
     def set_volumes(self):
-        if "_volumes_to_tag" in self.config.keys():
-            self.volumes = self.config["_volumes_to_tag"]
-        elif self.args.volumes:
+        if self.args.volumes:
             self.volumes = self.args.volumes
+        elif "_volumes_to_tag" in self.config.keys():
+            self.volumes = self.config["_volumes_to_tag"]
 
     def set_snapshots(self):
-        if "_snapshots_to_tag" in self.config.keys():
-            self.snapshots = self.config["_snapshots_to_tag"]
-        elif self.args.snapshots:
+        if self.args.snapshots:
             self.snapshots = self.args.snapshots
+        elif "_snapshots_to_tag" in self.config.keys():
+            self.snapshots = self.config["_snapshots_to_tag"]
 
     def set_novolumes(self):
         self.novolumes = self.args.novolumes
