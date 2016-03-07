@@ -338,11 +338,11 @@ class Logging(object):
 
         # Configure our logging output
         if verbosity >= 2:
-            logging.basicConfig(level=logging.DEBUG, format=self._log_detailed_format, datefmt='%F %T')
+            logging.basicConfig(level=logging.DEBUG, format=self._log_detailed_format, datefmt='%Y-%m-%d %H:%M:%S')
         elif verbosity >= 1:
-            logging.basicConfig(level=logging.INFO, format=self._log_detailed_format, datefmt='%F %T')
+            logging.basicConfig(level=logging.INFO, format=self._log_detailed_format, datefmt='%Y-%m-%d %H:%M:%S')
         else:
-            logging.basicConfig(level=logging.INFO, format=self._log_simple_format, datefmt='%F %T')
+            logging.basicConfig(level=logging.INFO, format=self._log_simple_format, datefmt='%Y-%m-%d %H:%M:%S')
 
         # Configure Boto's logging output
         if verbosity >= 4:
