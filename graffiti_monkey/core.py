@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 
 class GraffitiMonkey(object):
-    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, volume_tags_to_be_set, snapshot_tags_to_be_set, dryrun, append, volumes_to_tag, snapshots_to_tag, novolumes, nosnapshots):
+    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, volume_tags_to_be_set, snapshot_tags_to_be_set, dryrun, append, volumes_to_tag, snapshots_to_tag, instance_filter, novolumes, nosnapshots):
         # This list of tags associated with an EC2 instance to propagate to
         # attached EBS volumes
         self._instance_tags_to_propagate = instance_tags_to_propagate
@@ -58,6 +58,9 @@ class GraffitiMonkey(object):
 
         # Snapshots we will tag
         self._snapshots_to_tag = snapshots_to_tag
+
+        # Filter instances by a given param and propagate their tags to their attached volumes
+        self._instance_filter = instance_filter
 
         # If we process volumes
         self._novolumes = novolumes
@@ -127,6 +130,11 @@ class GraffitiMonkey(object):
                 if volume_id not in volume_ids:
                     log.info('Volume %s does not exist and will not be tagged', volume_id)
                     self._volumes_to_tag.remove(volume_id)
+
+        elif self._instance_filter:
+            log.info('Filter instances and retrieve volume ids')
+            instances = dict((instance.id, instance) for instance in self._conn.get_only_instances(filters=self._instance_filter))
+            volumes = self._conn.get_all_volumes(filters={'attachment.instance-id': list(instances.keys())})
 
         else:
             log.info('Getting list of all volumes')
