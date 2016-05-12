@@ -158,13 +158,18 @@ class GraffitiMonkeyCli(object):
     def set_nosnapshots(self):
         self.nosnapshots = self.args.nosnapshots
 
+    def config_default(self, key):
+        default_value = list()
+        value = self.config.get(key)
+        return value if value is not None else default_value
+
     def initialize_monkey(self):
         self.monkey = GraffitiMonkey(self.region,
                                      self.profile,
                                      self.config["_instance_tags_to_propagate"],
                                      self.config["_volume_tags_to_propagate"],
-                                     self.config["_volume_tags_to_be_set"],
-                                     self.config["_snapshot_tags_to_be_set"],
+                                     self.config_default("_volume_tags_to_be_set"),
+                                     self.config_default("_snapshot_tags_to_be_set"),
                                      self.dryrun,
                                      self.append,
                                      self.volumes,
