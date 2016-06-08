@@ -37,11 +37,13 @@ class GraffitiMonkeyCli(object):
                        "_volume_tags_to_propagate": ['Name', 'instance_id', 'device'],
                        "_volume_tags_to_be_set": [],
                        "_snapshot_tags_to_be_set": [],
+                       "_instance_filter": [],
                        }
         self.dryrun = False
         self.append = False
         self.volumes = None
         self.snapshots = None
+        self.instancefilter = None
         self.novolumes = False
         self.nosnapshots = False
 
@@ -152,6 +154,10 @@ class GraffitiMonkeyCli(object):
         elif "_snapshots_to_tag" in self.config.keys():
             self.snapshots = self.config["_snapshots_to_tag"]
 
+    def set_instancefilter(self):
+        if "_instance_filter" in self.config.keys():
+            self.instancefilter = self.config["_instance_filter"]
+
     def set_novolumes(self):
         self.novolumes = self.args.novolumes
 
@@ -174,6 +180,7 @@ class GraffitiMonkeyCli(object):
                                      self.append,
                                      self.volumes,
                                      self.snapshots,
+                                     self.instancefilter,
                                      self.novolumes,
                                      self.nosnapshots
                                      )
@@ -198,6 +205,7 @@ class GraffitiMonkeyCli(object):
         self.set_append()
         self.set_volumes()
         self.set_snapshots()
+        self.set_instancefilter()
         self.set_novolumes()
         self.set_nosnapshots()
 

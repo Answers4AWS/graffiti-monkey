@@ -16,6 +16,14 @@ _snapshot_tags_to_be_set:
   -  key:   'role'
      value: 'ebs_snapshot'
 
+_instance_filter:
+# Filter values with the same key (eg, tag:app) are an OR
+# Different filter keys are an AND operation (eg, tag:app and tag:team)
+# See the Filter section in http://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html#API_DescribeInstances_RequestParameters
+# Example entries:
+#    'tag:app':   ['app1', 'app2']
+#    'tag:team': 'team1'
+
 _volumes_to_tag:
 # An empty list means tag all volumes
 # Example entries:
