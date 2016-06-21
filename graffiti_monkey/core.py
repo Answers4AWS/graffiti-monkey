@@ -168,8 +168,9 @@ class GraffitiMonkey(object):
                     log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
                     break
                 except boto.exception.BotoServerError, e:
-                    log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, attempt)
-                    time.sleep(attempt)
+                    seconds = 2**attempt
+                    log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, seconds)
+                    time.sleep(seconds)
                 else:
                     break
             else:
@@ -275,8 +276,9 @@ class GraffitiMonkey(object):
                     log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
                     break
                 except boto.exception.BotoServerError, e:
-                    log.error("Encountered Error %s on snapshot %s, waiting %d seconds then retrying", e.error_code, snapshot.id, attempt)
-                    time.sleep(attempt)
+                    seconds = 2**attempt
+                    log.error("Encountered Error %s on snapshot %s, waiting %d seconds then retrying", e.error_code, snapshot.id, seconds)
+                    time.sleep(seconds)
                 else:
                     break
             else:
