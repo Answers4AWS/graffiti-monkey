@@ -41,6 +41,7 @@ class GraffitiMonkeyCli(object):
                        }
         self.dryrun = False
         self.append = False
+        self.nooverwrite = False
         self.volumes = None
         self.snapshots = None
         self.instancefilter = None
@@ -75,6 +76,8 @@ class GraffitiMonkeyCli(object):
                             help='dryrun only, display tagging actions but do not perform them')
         parser.add_argument('--append', action='store_true',
                             help='append propagated tags to existing tags (up to a total of ten tags)')
+        parser.add_argument('--nooverwrite', action='store_true',
+                            help='do not overwrite tags that are already present (goes well with --append)')
         parser.add_argument('--volumes', action='append',
                             help='volume-ids to tag')
         parser.add_argument('--snapshots', action='append',
@@ -142,6 +145,9 @@ class GraffitiMonkeyCli(object):
     def set_append(self):
         self.append = self.args.append
 
+    def set_nooverwrite(self):
+        self.nooverwrite = self.args.nooverwrite
+
     def set_volumes(self):
         if self.args.volumes:
             self.volumes = self.args.volumes
@@ -182,7 +188,8 @@ class GraffitiMonkeyCli(object):
                                      self.snapshots,
                                      self.instancefilter,
                                      self.novolumes,
-                                     self.nosnapshots
+                                     self.nosnapshots,
+                                     self.nooverwrite
                                      )
 
     def start_tags_propagation(self):
