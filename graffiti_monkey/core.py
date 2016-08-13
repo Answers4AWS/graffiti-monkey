@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 
 class GraffitiMonkey(object):
-    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, volume_tags_to_be_set, snapshot_tags_to_be_set, dryrun, append, volumes_to_tag, snapshots_to_tag, instance_filter, novolumes, nosnapshots):
+    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, volume_tags_to_be_set, snapshot_tags_to_be_set, dryrun, append, volumes_to_tag, snapshots_to_tag, instance_filter, novolumes, nosnapshots, nooverwrite):
         # This list of tags associated with an EC2 instance to propagate to
         # attached EBS volumes
         self._instance_tags_to_propagate = instance_tags_to_propagate
@@ -52,6 +52,9 @@ class GraffitiMonkey(object):
 
         # If we are appending tags
         self._append = append
+
+        # If we should not overwrite any existing tags
+        self._nooverwrite = nooverwrite
 
         # Volumes we will tag
         self._volumes_to_tag = volumes_to_tag
@@ -194,6 +197,10 @@ class GraffitiMonkey(object):
 
         instance_tags = instances[instance_id].tags
 
+        if self._nooverwrite:
+            for tag_name in volume.tags:
+                del instance_tags[tag_name]
+
         tags_to_set = {}
         if self._append:
             tags_to_set = volume.tags
@@ -294,6 +301,10 @@ class GraffitiMonkey(object):
             return
 
         volume_tags = volumes[volume_id].tags
+
+        if self._nooverwrite:
+            for tag_name in snapshot.tags:
+                del volume_tags[tag_name]
 
         tags_to_set = {}
         if self._append:

@@ -39,6 +39,7 @@ Usage
 	  --snapshots          snapshot(s) to tag
 	  --novolumes          do not perform volume tagging
 	  --nosnapshots        do not perform snapshot tagging
+	  --nooverwrite        do not overwrite tags that are already present (goes well with --append)
 
 Examples
 --------
