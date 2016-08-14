@@ -16,8 +16,8 @@ import logging
 
 from exceptions import *
 
-import boto
-from boto import ec2
+import boto3
+import botocore
 
 import time
 
@@ -72,14 +72,16 @@ class GraffitiMonkey(object):
         log.info("Options: dryrun %s, append %s, novolumes %s, nosnapshots %s", self._dryrun, self._append, self._novolumes, self._nosnapshots)
         log.info("Connecting to region %s using profile %s", self._region, self._profile)
         try:
-            self._conn = ec2.connect_to_region(self._region, profile_name=self._profile)
-        except boto.exception.NoAuthHandlerFound:
+            session = boto3.Session(profile_name=profile)
+            self._conn = session.client('ec2', region_name=self._region)
+        except botocore.exceptions.ProfileNotFound:
             raise GraffitiMonkeyException('No AWS credentials found - check your credentials')
-        except boto.provider.ProfileNotFoundError:
+        except (botocore.exceptions.NoCredentialsError, botocore.exceptions.PartialCredentialsError, botocore.exceptions.CredentialRetrievalError):
             log.info("Connecting to region %s using default credentials", self._region)
             try:
-                self._conn = ec2.connect_to_region(self._region)
-            except boto.exception.NoAuthHandlerFound:
+                session = boto3.Session()
+                self._conn = session.client('ec2', region_name=self._region)
+            except botocore.exceptions.ProfileNotFound:
                 raise GraffitiMonkeyException('No AWS credentials found - check your credentials')
 
 
@@ -91,7 +93,7 @@ class GraffitiMonkey(object):
         if not self._novolumes:
             volumes = self.tag_volumes()
 
-        volumes = { v.id: v for v in volumes }
+        volumes = { v["VolumeId"]: v for v in volumes }
 
         if not self._nosnapshots:
             self.tag_snapshots(volumes)
@@ -101,7 +103,7 @@ class GraffitiMonkey(object):
         them '''
 
         storage_counter = 0
-        volumes   = []
+        volumes = []
         instances = {}
 
         if self._volumes_to_tag:
@@ -138,11 +140,28 @@ class GraffitiMonkey(object):
 
         else:
             log.info('Getting list of all volumes')
-            volumes = self._conn.get_all_volumes()
-            reservations = self._conn.get_all_instances()
-            for reservation in reservations:
-                for instance in reservation.instances:
-                    instances[instance.id] = instance
+            results = ""
+            kwargs = { }
+            while True:
+                if "NextToken" in results:
+                    kwargs["NextToken"] = results["NextToken"]
+                results = self._conn.describe_volumes(**kwargs)
+                for volume in results["Volumes"]:
+                    volumes.append(volume)
+                if "NextToken" not in results:
+                    break
+
+            results = ""
+            kwargs = { }
+            while True:
+                if "NextToken" in results:
+                    kwargs["NextToken"] = results["NextToken"]
+                results = self._conn.describe_instances(**kwargs)
+                for reservation in results["Reservations"]:
+                    for instance in reservation["Instances"]:
+                        instances[instance["InstanceId"]] = instance
+                if "NextToken" not in results:
+                    break
 
         if not volumes:
             log.info('No volumes found')
@@ -154,20 +173,20 @@ class GraffitiMonkey(object):
         this_vol = 0
         for volume in volumes:
             this_vol += 1
-            storage_counter += volume.size
+            storage_counter += volume["Size"]
             log.info ('Processing volume %d of %d total volumes', this_vol, total_vols)
 
-            if volume.status != 'in-use':
-                log.debug('Skipping %s as it is not attached to an EC2 instance, so there is nothing to propagate', volume.id)
+            if volume["State"] != 'in-use':
+                log.debug('Skipping %s as it is not attached to an EC2 instance, so there is nothing to propagate', volume["VolumeId"])
                 continue
 
             for attempt in range(5):
                 try:
                     self.tag_volume(volume, instances)
-                except boto.exception.EC2ResponseError, e:
+                except botocore.exceptions.ClientError as e:
                     log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
                     break
-                except boto.exception.BotoServerError, e:
+                except (botocore.exceptions.EndpointConnectionError, botocore.exceptions.ConnectionClosedError) as e:
                     log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, attempt)
                     time.sleep(attempt)
                 else:
@@ -186,22 +205,27 @@ class GraffitiMonkey(object):
         ''' Tags a specific volume '''
 
         instance_id = None
-        if volume.attach_data.instance_id:
-            instance_id = volume.attach_data.instance_id
+        if volume["Attachments"][0]["InstanceId"]:
+            instance_id = volume["Attachments"][0]["InstanceId"]
         device = None
-        if volume.attach_data.device:
-            device = volume.attach_data.device
+        if volume["Attachments"][0]["Device"]:
+            device = volume["Attachments"][0]["Device"]
 
-        instance_tags = instances[instance_id].tags
+        if "Tags" in instances[instance_id]:
+            instance_tags = instances[instance_id]["Tags"]
+        else:
+            instance_tags = []
 
         tags_to_set = {}
         if self._append:
             tags_to_set = volume.tags
         for tag_name in self._instance_tags_to_propagate:
             log.debug('Trying to propagate instance tag: %s', tag_name)
-            if tag_name in instance_tags:
-                value = instance_tags[tag_name]
-                tags_to_set[tag_name] = value
+
+            for tag_set in instance_tags:
+                if tag_name in tag_set["Key"]:
+                    value = tag_set["Value"]
+                    tags_to_set[tag_name] = value
 
         # Additional tags
         tags_to_set['instance_id'] = instance_id
@@ -213,9 +237,9 @@ class GraffitiMonkey(object):
             tags_to_set[tag['key']] = tag['value']
 
         if self._dryrun:
-            log.info('DRYRUN: Volume %s would have been tagged %s', volume.id, tags_to_set)
+            log.info('DRYRUN: Volume %s would have been tagged %s', volume["VolumeId"], tags_to_set)
         else:
-            self._set_resource_tags(volume, tags_to_set)
+            self._set_resource_tags(volume, "VolumeId", tags_to_set)
         return True
 
 
@@ -243,22 +267,31 @@ class GraffitiMonkey(object):
                     self._snapshots_to_tag.remove(snapshot)
         else:
             log.info('Getting list of all snapshots')
-            snapshots = self._conn.get_all_snapshots(owner='self')
+            results = ""
+            kwargs = {"OwnerIds": ["self"]}
+            while True:
+                if "NextToken" in results:
+                    kwargs["NextToken"] = results["NextToken"]
+                results = self._conn.describe_snapshots(**kwargs)
+                for snapshot in results["Snapshots"]:
+                    snapshots.append(snapshot)
+                if "NextToken" not in results:
+                    break
 
         if not snapshots:
             log.info('No snapshots found')
             return True
 
-        all_volume_ids = set(s.volume_id for s in snapshots)
+        all_volume_ids = set(s["VolumeId"] for s in snapshots)
         extra_volume_ids = [id for id in all_volume_ids if id not in volumes]
 
         ''' Fetch any extra volumes that weren't carried over from tag_volumes() (if any) '''
         for chunk in (extra_volume_ids[n:n+200] for n in xrange(0, len(extra_volume_ids), 200)):
-            extra_volumes = self._conn.get_all_volumes(
-                    filters = { 'volume-id': chunk }
+            extra_volumes = self._conn.describe_volumes(
+                    Filters=[{"Name": "volume-id", "Values": chunk}]
                     )
-            for vol in extra_volumes:
-                volumes[vol.id] = vol
+            for vol in extra_volumes["Volumes"]:
+                volumes[vol["VolumeId"]] = vol
 
         log.debug('Snapshot list >%s<', snapshots)
         total_snaps = len(snapshots)
@@ -271,10 +304,10 @@ class GraffitiMonkey(object):
             for attempt in range(5):
                 try:
                     self.tag_snapshot(snapshot, volumes)
-                except boto.exception.EC2ResponseError, e:
+                except botocore.exceptions.ClientError as e:
                     log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
                     break
-                except boto.exception.BotoServerError, e:
+                except (botocore.exceptions.EndpointConnectionError, botocore.exceptions.ConnectionClosedError) as e:
                     log.error("Encountered Error %s on snapshot %s, waiting %d seconds then retrying", e.error_code, snapshot.id, attempt)
                     time.sleep(attempt)
                 else:
@@ -287,21 +320,29 @@ class GraffitiMonkey(object):
     def tag_snapshot(self, snapshot, volumes):
         ''' Tags a specific snapshot '''
 
-        volume_id = snapshot.volume_id
+        volume_id = snapshot["VolumeId"]
+        volume_tags = []
 
         if volume_id not in volumes:
-            log.info("Snapshot %s volume %s not found. Snapshot will not be tagged", snapshot.id, volume_id)
+            log.info("Snapshot %s volume %s not found. Snapshot will not be tagged", snapshot["SnapshotId"], volume_id)
             return
 
-        volume_tags = volumes[volume_id].tags
+        if "Tags" in volumes[volume_id]:
+            for volume_tag_set in volumes[volume_id]["Tags"]:
+                volume_tag_key = volume_tag_set["Key"]
+                volume_tag_value = volume_tag_set["Value"]
+                volume_tags.append({"Key": volume_tag_key, "Value": volume_tag_value})
 
         tags_to_set = {}
         if self._append:
             tags_to_set = snapshot.tags
         for tag_name in self._volume_tags_to_propagate:
             log.debug('Trying to propagate volume tag: %s', tag_name)
-            if tag_name in volume_tags:
-                tags_to_set[tag_name] = volume_tags[tag_name]
+
+            for tag_set in volume_tags:
+                if tag_name == tag_set["Key"]:
+                    value = tag_set["Value"]
+                    tags_to_set[tag_name] = value
 
         # Set default tags for snapshot
         for tag in self._snapshot_tags_to_be_set:
@@ -309,31 +350,52 @@ class GraffitiMonkey(object):
             tags_to_set[tag['key']] = tag['value']
 
         if self._dryrun:
-            log.info('DRYRUN: Snapshot %s would have been tagged %s', snapshot.id, tags_to_set)
+            log.info('DRYRUN: Snapshot %s would have been tagged %s', snapshot["SnapshotId"], tags_to_set)
         else:
-            self._set_resource_tags(snapshot, tags_to_set)
+            self._set_resource_tags(snapshot, "SnapshotId", tags_to_set)
         return True
 
 
-    def _set_resource_tags(self, resource, tags):
+    def _set_resource_tags(self, resource, resource_id, tags):
         ''' Sets the tags on the given AWS resource '''
 
-        if not isinstance(resource, ec2.ec2object.TaggedEC2Object):
-            msg = 'Resource %s is not an instance of TaggedEC2Object' % resource
-            raise GraffitiMonkeyException(msg)
-
+        resource_tags = {}
         delta_tags = {}
 
-        for tag_key, tag_value in tags.iteritems():
-            if not tag_key in resource.tags or resource.tags[tag_key] != tag_value:
-                delta_tags[tag_key] = tag_value
+        if "Tags" in resource:
+            for tag_set in resource["Tags"]:
+                resource_tags[tag_set["Key"]] = tag_set["Value"]
+            for tag_key, tag_value in tags.iteritems():
+                if not tag_key in resource_tags or resource_tags[tag_key] != tag_value:
+                    delta_tags[tag_key] = tag_value
+        else:
+            delta_tags = tags
 
         if len(delta_tags) == 0:
             return
 
-        log.info('Tagging %s with [%s]', resource.id, delta_tags)
-        resource.add_tags(delta_tags)
+        log.info('Tagging %s with [%s]', resource[resource_id], delta_tags)
 
+        boto3_formatted_tags = []
+        for key in delta_tags.keys():
+            boto3_formatted_tags.append({ 'Key': key, 'Value' : delta_tags[key]})
+        self._conn.create_tags(Resources=[resource[resource_id]], Tags=boto3_formatted_tags)
+        # Need to replace tags in the resource variable
+        if "Tags" not in resource:
+            resource["Tags"] = boto3_formatted_tags
+        else:
+            resource_keys = []
+            for tag_set in resource["Tags"]:
+                resource_keys.append(tag_set["Key"])
+
+            for key in delta_tags.keys():
+                tag_key = key
+                tag_value = delta_tags[key]
+                if tag_key in resource_keys:
+                    tag_index = resource_keys.index(tag_key)
+                    resource["Tags"][tag_index] = {"Key": tag_key, "Value": tag_value}
+                else:
+                    resource["Tags"].append({"Key": tag_key, "Value": tag_value})
 
 
 class Logging(object):
@@ -354,8 +416,8 @@ class Logging(object):
 
         # Configure Boto's logging output
         if verbosity >= 4:
-            logging.getLogger('boto').setLevel(logging.DEBUG)
+            logging.getLogger('boto3').setLevel(logging.DEBUG)
         elif verbosity >= 3:
-            logging.getLogger('boto').setLevel(logging.INFO)
+            logging.getLogger('boto3').setLevel(logging.INFO)
         else:
-            logging.getLogger('boto').setLevel(logging.CRITICAL)
+            logging.getLogger('boto3').setLevel(logging.CRITICAL)
