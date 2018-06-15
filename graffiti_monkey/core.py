@@ -76,6 +76,7 @@ class GraffitiMonkey(object):
         self._conn = self.get_connection()
 
     def get_connection(self):
+        import boto
         ret = None
         if self._role:
             from boto.sts import STSConnection
