@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 
 class GraffitiMonkey(object):
-    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, volume_tags_to_be_set, snapshot_tags_to_be_set, dryrun, append, volumes_to_tag, snapshots_to_tag, instance_filter, novolumes, nosnapshots):
+    def __init__(self, region, profile, role, instance_tags_to_propagate, volume_tags_to_propagate, volume_tags_to_be_set, snapshot_tags_to_be_set, dryrun, append, volumes_to_tag, snapshots_to_tag, instance_filter, novolumes, nosnapshots):
         # This list of tags associated with an EC2 instance to propagate to
         # attached EBS volumes
         self._instance_tags_to_propagate = instance_tags_to_propagate
@@ -46,6 +46,9 @@ class GraffitiMonkey(object):
 
         # The profile to use
         self._profile = profile
+
+        # The role to use if set
+        self._role = role
 
         # Whether this is a dryrun
         self._dryrun = dryrun
@@ -70,18 +73,41 @@ class GraffitiMonkey(object):
 
         log.info("Starting Graffiti Monkey")
         log.info("Options: dryrun %s, append %s, novolumes %s, nosnapshots %s", self._dryrun, self._append, self._novolumes, self._nosnapshots)
-        log.info("Connecting to region %s using profile %s", self._region, self._profile)
-        try:
-            self._conn = ec2.connect_to_region(self._region, profile_name=self._profile)
-        except boto.exception.NoAuthHandlerFound:
-            raise GraffitiMonkeyException('No AWS credentials found - check your credentials')
-        except boto.provider.ProfileNotFoundError:
-            log.info("Connecting to region %s using default credentials", self._region)
+        self._conn = self.get_connection()
+
+    def get_connection(self):
+        import boto
+        ret = None
+        if self._role:
+            from boto.sts import STSConnection
+            import boto
             try:
-                self._conn = ec2.connect_to_region(self._region)
+                sts = STSConnection()
+                assumed_role = sts.assume_role(role_arn=self._role, role_session_name='AssumeRoleSession')
+                ret = ec2.connect_to_region(
+                    self._region,
+                    aws_access_key_id=assumed_role.credentials.access_key,
+                    aws_secret_access_key=assumed_role.credentials.secret_key,
+                    security_token=assumed_role.credentials.session_token
+                )
+            except Exception,e:
+                print e
+                raise GraffitiMonkeyException('Cannot complete cross account access')
+        else:
+            log.info("Connecting to region %s using profile %s", self._region, self._profile)
+            try:
+                ret = ec2.connect_to_region(self._region, profile_name=self._profile)
             except boto.exception.NoAuthHandlerFound:
                 raise GraffitiMonkeyException('No AWS credentials found - check your credentials')
-
+            except boto.provider.ProfileNotFoundError:
+                log.info("Connecting to region %s using default credentials", self._region)
+                try:
+                    ret = ec2.connect_to_region(self._region)
+                except boto.exception.NoAuthHandlerFound:
+                    raise GraffitiMonkeyException('No AWS credentials found - check your credentials')
+        if not ret:
+            raise GraffitiMonkeyException('AWS connection failed - check your region and credentials')
+        return ret
 
     def propagate_tags(self):
         ''' Propagates tags by copying them from EC2 instance to EBS volume, and
