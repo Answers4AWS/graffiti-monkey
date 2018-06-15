@@ -31,6 +31,7 @@ class GraffitiMonkeyCli(object):
     def __init__(self):
         self.region = None
         self.profile = None
+        self.role = None
         self.monkey = None
         self.args = None
         self.config = {"_instance_tags_to_propagate": ['Name'],
@@ -65,6 +66,8 @@ class GraffitiMonkeyCli(object):
                             help='the region to tag things in (default is current region of EC2 instance this is running on). E.g. us-east-1')
         parser.add_argument('--profile', metavar='PROFILE',
                             help='the profile (credentials) to use to connect to EC2')
+        parser.add_argument('--role', metavar='ROLE',
+                            help='the role (sts role) to use to connect to EC2')
         parser.add_argument('--verbose', '-v', action='count',
                             help='enable verbose output (-vvv for more)')
         parser.add_argument('--version', action='version', version='%(prog)s ' + __version__,
@@ -136,6 +139,15 @@ class GraffitiMonkeyCli(object):
             self.profile = 'default'
         log.debug("Using profile: %s", self.profile)
 
+    def set_role(self):
+        if self.args.role:
+            self.role = self.args.role
+        elif "role" in self.config.keys():
+            self.role = self.config["role"]
+            log.debug("Using role: %s", self.role)
+        else:
+            log.debug("Not using role: %s", self.role)
+
     def set_dryrun(self):
         self.dryrun = self.args.dryrun
 
@@ -172,6 +184,7 @@ class GraffitiMonkeyCli(object):
     def initialize_monkey(self):
         self.monkey = GraffitiMonkey(self.region,
                                      self.profile,
+                                     self.role,
                                      self.config["_instance_tags_to_propagate"],
                                      self.config["_volume_tags_to_propagate"],
                                      self.config_default("_volume_tags_to_be_set"),
@@ -201,6 +214,7 @@ class GraffitiMonkeyCli(object):
         self.set_config()
         self.set_region()
         self.set_profile()
+        self.set_role()
         self.set_dryrun()
         self.set_append()
         self.set_volumes()

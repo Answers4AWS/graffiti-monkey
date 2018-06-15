@@ -29,6 +29,7 @@ Usage
 	                       EC2 instance this is running on). E.g. us-east-1
 	  --profile PROFILE    the profile to use to connect to EC2 (default is 'default',
 	                       see Boto docs for profile credential options)
+	  --role ROLE          the role (sts role) to use to connect to EC2')
 	  --verbose, -v        enable verbose output (-vvv for more)
 	  --version            display version number and exit
 	  --config CONFIG.YML  read a yaml configuration file.  specify tags to propagate without changing code.
