@@ -33,19 +33,23 @@ class GraffitiMonkeyCli(object):
         self.profile = None
         self.monkey = None
         self.args = None
-        self.config = {"_instance_tags_to_propagate": ['Name'],
-                       "_volume_tags_to_propagate": ['Name', 'instance_id', 'device'],
+        self.config = {"_instance_tags_to_propagate": [],
+                       "_volume_tags_to_propagate": [],
                        "_volume_tags_to_be_set": [],
                        "_snapshot_tags_to_be_set": [],
                        "_instance_filter": [],
+                       "_instance_tags_to_add": [],
                        }
         self.dryrun = False
         self.append = False
         self.volumes = None
         self.snapshots = None
         self.instancefilter = None
+        self.instancetags = None
         self.novolumes = False
         self.nosnapshots = False
+        self.noinstances = False
+        self.set_config_defaults()
 
     @staticmethod
     def _fail(message="Unknown failure", code=1):
@@ -83,6 +87,8 @@ class GraffitiMonkeyCli(object):
                             help='do not perform volume tagging')
         parser.add_argument('--nosnapshots', action='store_true',
                             help='do not perform snapshot tagging')
+        parser.add_argument('--noinstances', action='store_true',
+                            help='do not perform instance tagging')
         self.args = parser.parse_args(self.get_argv())
 
     @staticmethod
@@ -90,6 +96,14 @@ class GraffitiMonkeyCli(object):
         self._fail("Something went wrong reading the passed yaml config file. "
                           "Make sure to use valid yaml syntax. "
                           "Also the start of the file should not be marked with '---'.", 6)
+
+    def set_config_defaults(self):
+        if "_instance_tags_to_propagate" not in self.config.keys():
+            self.config["_instance_tags_to_propagate"] = ['Name']
+        if "_volume_tags_to_propagate" not in self.config.keys():
+            self.config["_volume_tags_to_propagate"] = ['Name', 'instance_id', 'device']
+        if "_instance_tags_to_add" not in self.config.keys():
+            self.config["_instance_tags_to_add"] = []
 
     def set_config(self):
         if self.args.config:
@@ -103,6 +117,7 @@ class GraffitiMonkeyCli(object):
             try:
                 #TODO: take default values and these can be overwritten by config
                 self.config = yaml.load(self.args.config)
+                self.set_config_defaults()
                 if self.config is None:
                     self.fail_due_to_bad_config_file()
             except:
@@ -158,11 +173,18 @@ class GraffitiMonkeyCli(object):
         if "_instance_filter" in self.config.keys():
             self.instancefilter = self.config["_instance_filter"]
 
+    def set_instancestags(self):
+        if "_instance_tags_to_add" in self.config.keys():
+            self.instancetags = self.config["_instance_tags_to_add"]
+
     def set_novolumes(self):
         self.novolumes = self.args.novolumes
 
     def set_nosnapshots(self):
         self.nosnapshots = self.args.nosnapshots
+
+    def set_noinstances(self):
+        self.noinstances = self.args.noinstances
 
     def config_default(self, key):
         default_value = list()
@@ -182,7 +204,9 @@ class GraffitiMonkeyCli(object):
                                      self.snapshots,
                                      self.instancefilter,
                                      self.novolumes,
-                                     self.nosnapshots
+                                     self.nosnapshots,
+                                     self.noinstances,
+                                     self.instancetags
                                      )
 
     def start_tags_propagation(self):
@@ -208,6 +232,8 @@ class GraffitiMonkeyCli(object):
         self.set_instancefilter()
         self.set_novolumes()
         self.set_nosnapshots()
+        self.set_noinstances()
+        self.set_instancestags()
 
         try:
             self.initialize_monkey()

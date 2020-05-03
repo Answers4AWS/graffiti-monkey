@@ -39,6 +39,7 @@ Usage
 	  --snapshots          snapshot(s) to tag
 	  --novolumes          do not perform volume tagging
 	  --nosnapshots        do not perform snapshot tagging
+	  --noinstances        do not perform instance tagging
 
 Examples
 --------
@@ -136,7 +137,7 @@ Graffiti-monkey itself can be configured using a yaml file
   _volume_tags_to_be_set:
     -  key:   'NU_ROLE'
        value: 'ebs'
-  
+
   _snapshot_tags_to_be_set:
     -  key:   'NU_ROLE'
        value: 'ebs_snapshot'
@@ -153,6 +154,24 @@ Graffiti-monkey itself can be configured using a yaml file
   #  - 'snap-12ab3c45'
   #  - 'snap-6de7f890'
 
+  # _instance_tags_to_add:
+  # An empty list will prevent additional tags being added to instances
+  # Example entries:
+  #  - key: Name
+  #    matches:
+  #      # Tag owner + team when Name starts with dev
+  #      - match: ^dev.*
+  #        description: Development
+  #        tags_to_set_if_match:
+  #          owner: devmgr@mycompany.com
+  #          team: dev
+  #      # Tag unknown owner + team when no other match
+  #      - match: .*
+  #        description: No match
+  #        tags_to_set_if_match:
+  #          owner: unknown
+  #          team: unknown
+
 :code:`_instance_tags_to_propagate` is used to define the tags that are propagated
 from an instance to its volumes. :code:`_volume_tags_to_propagate` defines the tags
 that are propagated from a volume to its snapshots.
@@ -164,6 +183,10 @@ by default.
 :code:`_volumes_to_tag` is used to define the volumes that are tagged. Leave empty
 to tag all volumes. :code:`_snapshots_to_tag` is used to define the snapshots to
 be tagged. Leave empty to tag all snapshots.
+
+:code:`_instance_tags_to_add` is used to define rules for assigning new tags based on existing tags. :code:`_instance_tags_to_add` defines the tags
+that are queried for matches based on regular expressions. If a match is found, then :code:`tags_to_set_if_match` is used to define the tags to add or update.
+Leave empty when instances do not require additional tags for existing ones.
 
 If the configuration file is used, the _ entry headers must exist (those entries
 having no values or commented out values [as shown] is acceptable).
