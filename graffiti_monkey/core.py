@@ -21,12 +21,14 @@ from boto import ec2
 
 import time
 
+import re
+
 __all__ = ('GraffitiMonkey', 'Logging')
 log = logging.getLogger(__name__)
 
 
 class GraffitiMonkey(object):
-    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, volume_tags_to_be_set, snapshot_tags_to_be_set, dryrun, append, volumes_to_tag, snapshots_to_tag, instance_filter, novolumes, nosnapshots):
+    def __init__(self, region, profile, instance_tags_to_propagate, volume_tags_to_propagate, volume_tags_to_be_set, snapshot_tags_to_be_set, dryrun, append, volumes_to_tag, snapshots_to_tag, instance_filter, novolumes, nosnapshots, noinstances, instancetags):
         # This list of tags associated with an EC2 instance to propagate to
         # attached EBS volumes
         self._instance_tags_to_propagate = instance_tags_to_propagate
@@ -68,8 +70,14 @@ class GraffitiMonkey(object):
         # If we process snapshots
         self._nosnapshots = nosnapshots
 
+        # If we process instances
+        self._noinstances = noinstances
+
+        # Expand tags on the instance based on regular expressions
+        self._instance_tags_to_add = instancetags
+
         log.info("Starting Graffiti Monkey")
-        log.info("Options: dryrun %s, append %s, novolumes %s, nosnapshots %s", self._dryrun, self._append, self._novolumes, self._nosnapshots)
+        log.info("Options: dryrun %s, append %s, novolumes %s, nosnapshots %s, noinstances %s", self._dryrun, self._append, self._novolumes, self._nosnapshots, self._noinstances)
         log.info("Connecting to region %s using profile %s", self._region, self._profile)
         try:
             self._conn = ec2.connect_to_region(self._region, profile_name=self._profile)
@@ -95,6 +103,45 @@ class GraffitiMonkey(object):
 
         if not self._nosnapshots:
             self.tag_snapshots(volumes)
+
+        if not self._noinstances:
+            self.tag_instances()
+
+    def log_tag_action(self, tags):
+        s = 'added/updated keys\n'
+        if self._dryrun:
+            s = 'DRYRUN: Would have added/updated keys\n'
+        for key in tags.keys():
+            s = s + ' ' + key + '=' + tags[key]+'\n'
+        log.info(s)
+
+    def look_for_tag_match(self, instance, key, value, tag_config):
+        for m in tag_config['matches']:
+            if re.search(m['match'], value):
+                description = ''
+                if 'description' in m:
+                    description = " - '%s'" % (m['description'])
+                log.info("[%s]%s: found a match for %s=%s with %s" % (instance.id, description, key, value, m['match']))
+                self.log_tag_action(m['tags_to_set_if_match'])
+                if not self._dryrun:
+                    instance.add_tags(m['tags_to_set_if_match'])
+                if not 'continue' in m:
+                    return
+        log.warn("[%s] no match found for %s=%s despite matches defined in config" % (instance. id, key, value))
+
+    def tag_instance(self, instance, tags):
+        for tag_config in self._instance_tags_to_add:
+            for key in tags.keys():
+                value = tags[key]
+                if tag_config['key'] == key:
+                    self.look_for_tag_match(instance, key, value, tag_config)
+
+    def tag_instances(self):
+        if len(self._instance_tags_to_add) > 0:
+            log.info('Using instance list from cli/config file')
+        for instance in self._conn.get_only_instances(filters=self._instance_filter):
+            self.tag_instance(instance, instance.tags)
+        log.info('Completed processing all instances')
 
     def tag_volumes(self):
         ''' Gets a list of volumes, and then loops through them tagging
