@@ -85,7 +85,6 @@ class GraffitiMonkeyCli(object):
                             help='do not perform snapshot tagging')
         self.args = parser.parse_args(self.get_argv())
 
-    @staticmethod
     def fail_due_to_bad_config_file(self):
         self._fail("Something went wrong reading the passed yaml config file. "
                    "Make sure to use valid yaml syntax. "
