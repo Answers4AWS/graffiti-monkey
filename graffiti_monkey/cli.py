@@ -65,7 +65,7 @@ class GraffitiMonkeyCli(object):
                             help='the region to tag things in (default is current region of EC2 instance this is running on). E.g. us-east-1')
         parser.add_argument('--profile', metavar='PROFILE',
                             help='the profile (credentials) to use to connect to EC2')
-        parser.add_argument('--verbose', '-v', action='count',
+        parser.add_argument('--verbose', '-v', action='count', default=0,
                             help='enable verbose output (-vvv for more)')
         parser.add_argument('--version', action='version', version='%(prog)s ' + __version__,
                             help='display version number and exit')
@@ -95,14 +95,14 @@ class GraffitiMonkeyCli(object):
         if self.args.config:
             try:
                 import yaml
-            except:
+                from yaml import CLoader
                 log.error("When the config parameter is used, you need to have the python PyYAML library.")
                 log.error("It can be installed with pip `pip install PyYAML`.")
                 sys.exit(5)
 
             try:
                 #TODO: take default values and these can be overwritten by config
-                self.config = yaml.load(self.args.config)
+                self.config = yaml.load(self.args.config, Loader=CLoader)
                 if self.config is None:
                     self.fail_due_to_bad_config_file()
             except:

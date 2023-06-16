@@ -161,19 +161,22 @@ class GraffitiMonkey(object):
                 log.debug('Skipping %s as it is not attached to an EC2 instance, so there is nothing to propagate', volume.id)
                 continue
 
+            err = None
             for attempt in range(5):
                 try:
                     self.tag_volume(volume, instances)
-                except boto.exception.EC2ResponseError, e:
+                except boto.exception.EC2ResponseError as e:
                     log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
+                    err = e
                     break
-                except boto.exception.BotoServerError, e:
+                except boto.exception.BotoServerError as e:
                     log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, attempt)
+                    err = e
                     time.sleep(attempt)
                 else:
                     break
             else:
-                log.error("Encountered Error %s on volume %s, %d retries failed, continuing", e.error_code, volume.id, attempt)
+                log.error("Encountered Error %s on volume %s, %d retries failed, continuing", err.error_code, volume.id, attempt)
                 continue
 
         log.info('Processed a total of {0} GB of AWS Volumes'.format(storage_counter))
@@ -240,7 +243,7 @@ class GraffitiMonkey(object):
             for snapshot_id in self._snapshots_to_tag:
                 if snapshot_id not in snapshot_ids:
                     log.info('Snapshot %s does not exist and will not be tagged', snapshot_id)
-                    self._snapshots_to_tag.remove(snapshot)
+                    self._snapshots_to_tag.remove(snapshot_id)
         else:
             log.info('Getting list of all snapshots')
             snapshots = self._conn.get_all_snapshots(owner='self')
@@ -268,19 +271,22 @@ class GraffitiMonkey(object):
         for snapshot in snapshots:
             this_snap += 1
             log.info ('Processing snapshot %d of %d total snapshots', this_snap, total_snaps)
+            err = None
             for attempt in range(5):
                 try:
                     self.tag_snapshot(snapshot, volumes)
-                except boto.exception.EC2ResponseError, e:
+                except boto.exception.EC2ResponseError as e:
                     log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
+                    err = e
                     break
-                except boto.exception.BotoServerError, e:
+                except boto.exception.BotoServerError as e:
                     log.error("Encountered Error %s on snapshot %s, waiting %d seconds then retrying", e.error_code, snapshot.id, attempt)
+                    err = e
                     time.sleep(attempt)
                 else:
                     break
             else:
-                log.error("Encountered Error %s on snapshot %s, %d retries failed, continuing", e.error_code, snapshot.id, attempt)
+                log.error("Encountered Error %s on snapshot %s, %d retries failed, continuing", err.error_code, snapshot.id, attempt)
                 continue
         log.info('Completed processing all snapshots')
 
@@ -324,8 +330,8 @@ class GraffitiMonkey(object):
 
         delta_tags = {}
 
-        for tag_key, tag_value in tags.iteritems():
-            if not tag_key in resource.tags or resource.tags[tag_key] != tag_value:
+        for tag_key, tag_value in tags.items():
+            if tag_key not in resource.tags or resource.tags[tag_key] != tag_value:
                 delta_tags[tag_key] = tag_value
 
         if len(delta_tags) == 0:
@@ -341,7 +347,7 @@ class Logging(object):
     _log_simple_format = '%(asctime)s [%(levelname)s] %(message)s'
     _log_detailed_format = '%(asctime)s [%(levelname)s] [%(name)s(%(lineno)s):%(funcName)s] %(message)s'
 
-    def configure(self, verbosity = None):
+    def configure(self, verbosity):
         ''' Configure the logging format and verbosity '''
 
         # Configure our logging output
