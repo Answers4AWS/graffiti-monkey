@@ -70,7 +70,7 @@ class GraffitiMonkeyCli(object):
         parser.add_argument('--version', action='version', version='%(prog)s ' + __version__,
                             help='display version number and exit')
         parser.add_argument('--config', '-c', nargs="?", type=argparse.FileType('r'),
-                        default=None, help="Give a yaml configuration file")
+                            default=None, help="Give a yaml configuration file")
         parser.add_argument('--dryrun', action='store_true',
                             help='dryrun only, display tagging actions but do not perform them')
         parser.add_argument('--append', action='store_true',
@@ -88,24 +88,25 @@ class GraffitiMonkeyCli(object):
     @staticmethod
     def fail_due_to_bad_config_file(self):
         self._fail("Something went wrong reading the passed yaml config file. "
-                          "Make sure to use valid yaml syntax. "
-                          "Also the start of the file should not be marked with '---'.", 6)
+                   "Make sure to use valid yaml syntax. "
+                   "Also the start of the file should not be marked with '---'.", 6)
 
     def set_config(self):
         if self.args.config:
             try:
                 import yaml
                 from yaml import CLoader
+            except ImportError:
                 log.error("When the config parameter is used, you need to have the python PyYAML library.")
                 log.error("It can be installed with pip `pip install PyYAML`.")
                 sys.exit(5)
 
             try:
-                #TODO: take default values and these can be overwritten by config
+                # TODO: take default values and these can be overwritten by config
                 self.config = yaml.load(self.args.config, Loader=CLoader)
                 if self.config is None:
                     self.fail_due_to_bad_config_file()
-            except:
+            except yaml.YAMLError:
                 self.fail_due_to_bad_config_file()
 
 
