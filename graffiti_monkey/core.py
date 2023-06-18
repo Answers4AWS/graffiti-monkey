@@ -146,7 +146,7 @@ class GraffitiMonkey(object):
 
         if not volumes:
             log.info('No volumes found')
-            return True
+            return volumes
 
         log.debug('Volume list >%s<', volumes)
         total_vols = len(volumes)
