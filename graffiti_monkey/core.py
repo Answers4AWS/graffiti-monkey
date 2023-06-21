@@ -14,7 +14,7 @@
 
 import logging
 
-from exceptions import *
+from .exceptions import GraffitiMonkeyException
 
 import boto
 from boto import ec2
@@ -91,7 +91,7 @@ class GraffitiMonkey(object):
         if not self._novolumes:
             volumes = self.tag_volumes()
 
-        volumes = { v.id: v for v in volumes }
+        volumes = {v.id: v for v in volumes}
 
         if not self._nosnapshots:
             self.tag_snapshots(volumes)
@@ -101,23 +101,23 @@ class GraffitiMonkey(object):
         them '''
 
         storage_counter = 0
-        volumes   = []
+        volumes = []
         instances = {}
 
         if self._volumes_to_tag:
             log.info('Using volume list from cli/config file')
 
             # Max of 200 filters in a request
-            for chunk in (self._volumes_to_tag[n:n+200] for n in xrange(0, len(self._volumes_to_tag), 200)):
+            for chunk in (self._volumes_to_tag[n:n + 200] for n in range(0, len(self._volumes_to_tag), 200)):
                 chunk_volumes = self._conn.get_all_volumes(
-                        filters = { 'volume-id': chunk }
-                        )
+                    filters={'volume-id': chunk}
+                )
                 volumes += chunk_volumes
 
                 chunk_instance_ids = set(v.attach_data.instance_id for v in chunk_volumes)
                 reservations = self._conn.get_all_instances(
-                        filters = {'instance-id': [id for id in chunk_instance_ids]}
-                        )
+                    filters={'instance-id': chunk_instance_ids}
+                )
                 for reservation in reservations:
                     for instance in reservation.instances:
                         instances[instance.id] = instance
@@ -146,7 +146,7 @@ class GraffitiMonkey(object):
 
         if not volumes:
             log.info('No volumes found')
-            return True
+            return volumes
 
         log.debug('Volume list >%s<', volumes)
         total_vols = len(volumes)
@@ -155,25 +155,28 @@ class GraffitiMonkey(object):
         for volume in volumes:
             this_vol += 1
             storage_counter += volume.size
-            log.info ('Processing volume %d of %d total volumes', this_vol, total_vols)
+            log.info('Processing volume %d of %d total volumes', this_vol, total_vols)
 
             if volume.status != 'in-use':
                 log.debug('Skipping %s as it is not attached to an EC2 instance, so there is nothing to propagate', volume.id)
                 continue
 
+            err = None
             for attempt in range(5):
                 try:
                     self.tag_volume(volume, instances)
-                except boto.exception.EC2ResponseError, e:
+                except boto.exception.EC2ResponseError as e:
                     log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
+                    err = e
                     break
-                except boto.exception.BotoServerError, e:
+                except boto.exception.BotoServerError as e:
                     log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, attempt)
+                    err = e
                     time.sleep(attempt)
                 else:
                     break
             else:
-                log.error("Encountered Error %s on volume %s, %d retries failed, continuing", e.error_code, volume.id, attempt)
+                log.error("Encountered Error %s on volume %s, %d retries failed, continuing", err.error_code, volume.id, attempt)
                 continue
 
         log.info('Processed a total of {0} GB of AWS Volumes'.format(storage_counter))
@@ -228,10 +231,10 @@ class GraffitiMonkey(object):
             log.info('Using snapshot list from cli/config file')
 
             # Max of 200 filters in a request
-            for chunk in (self._snapshots_to_tag[n:n+200] for n in xrange(0, len(self._snapshots_to_tag), 200)):
+            for chunk in (self._snapshots_to_tag[n:n + 200] for n in range(0, len(self._snapshots_to_tag), 200)):
                 chunk_snapshots = self._conn.get_all_snapshots(
-                        filters = { 'snapshot-id': chunk }
-                        )
+                    filters={'snapshot-id': chunk}
+                )
                 snapshots += chunk_snapshots
             snapshot_ids = [s.id for s in snapshots]
 
@@ -240,7 +243,7 @@ class GraffitiMonkey(object):
             for snapshot_id in self._snapshots_to_tag:
                 if snapshot_id not in snapshot_ids:
                     log.info('Snapshot %s does not exist and will not be tagged', snapshot_id)
-                    self._snapshots_to_tag.remove(snapshot)
+                    self._snapshots_to_tag.remove(snapshot_id)
         else:
             log.info('Getting list of all snapshots')
             snapshots = self._conn.get_all_snapshots(owner='self')
@@ -253,10 +256,10 @@ class GraffitiMonkey(object):
         extra_volume_ids = [id for id in all_volume_ids if id not in volumes]
 
         ''' Fetch any extra volumes that weren't carried over from tag_volumes() (if any) '''
-        for chunk in (extra_volume_ids[n:n+200] for n in xrange(0, len(extra_volume_ids), 200)):
+        for chunk in (extra_volume_ids[n:n + 200] for n in range(0, len(extra_volume_ids), 200)):
             extra_volumes = self._conn.get_all_volumes(
-                    filters = { 'volume-id': chunk }
-                    )
+                filters={'volume-id': chunk}
+            )
             for vol in extra_volumes:
                 volumes[vol.id] = vol
 
@@ -267,20 +270,23 @@ class GraffitiMonkey(object):
 
         for snapshot in snapshots:
             this_snap += 1
-            log.info ('Processing snapshot %d of %d total snapshots', this_snap, total_snaps)
+            log.info('Processing snapshot %d of %d total snapshots', this_snap, total_snaps)
+            err = None
             for attempt in range(5):
                 try:
                     self.tag_snapshot(snapshot, volumes)
-                except boto.exception.EC2ResponseError, e:
+                except boto.exception.EC2ResponseError as e:
                     log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
+                    err = e
                     break
-                except boto.exception.BotoServerError, e:
+                except boto.exception.BotoServerError as e:
                     log.error("Encountered Error %s on snapshot %s, waiting %d seconds then retrying", e.error_code, snapshot.id, attempt)
+                    err = e
                     time.sleep(attempt)
                 else:
                     break
             else:
-                log.error("Encountered Error %s on snapshot %s, %d retries failed, continuing", e.error_code, snapshot.id, attempt)
+                log.error("Encountered Error %s on snapshot %s, %d retries failed, continuing", err.error_code, snapshot.id, attempt)
                 continue
         log.info('Completed processing all snapshots')
 
@@ -324,8 +330,8 @@ class GraffitiMonkey(object):
 
         delta_tags = {}
 
-        for tag_key, tag_value in tags.iteritems():
-            if not tag_key in resource.tags or resource.tags[tag_key] != tag_value:
+        for tag_key, tag_value in tags.items():
+            if tag_key not in resource.tags or resource.tags[tag_key] != tag_value:
                 delta_tags[tag_key] = tag_value
 
         if len(delta_tags) == 0:
@@ -341,7 +347,7 @@ class Logging(object):
     _log_simple_format = '%(asctime)s [%(levelname)s] %(message)s'
     _log_detailed_format = '%(asctime)s [%(levelname)s] [%(name)s(%(lineno)s):%(funcName)s] %(message)s'
 
-    def configure(self, verbosity = None):
+    def configure(self, verbosity):
         ''' Configure the logging format and verbosity '''
 
         # Configure our logging output
